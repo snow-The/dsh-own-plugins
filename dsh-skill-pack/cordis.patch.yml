@@ -1,0 +1,4 @@
+# dsh-skill-pack bundle layer: curated engineering skills.
+- insert:
+    - id: skill-pack
+      name: '@snow-the/dsh-skill-pack'

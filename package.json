@@ -1,0 +1,26 @@
+{
+  "name": "dsh-own-plugins",
+  "version": "1.0.0",
+  "description": "Own-built DSH plugins (DeepSeek Harness) — replacement for third-party plugins that broke with DSH 0.1.0-rc.6. Zero runtime dependencies, node builtins only, unit-tested.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/snow-The/dsh-own-plugins.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/snow-The/dsh-own-plugins/issues"
+  },
+  "homepage": "https://github.com/snow-The/dsh-own-plugins#readme",
+  "devDependencies": {
+    "@deepseek-ai/dsh-skill-filesystem": "^0.1.0-rc.6",
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}
