@@ -5,7 +5,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { apply } from '../lib/index.js'
+import { apply } from '../dist/index.js'
 
 function makeRepo() {
   const dir = mkdtempSync(join(tmpdir(), 'gitkit-test-'))

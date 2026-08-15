@@ -1,0 +1,8 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./dsh-gitkit" },
+    { "path": "./dsh-snapshot" },
+    { "path": "./dsh-plugin-doctor" }
+  ]
+}
