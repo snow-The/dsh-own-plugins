@@ -123,6 +123,12 @@ async function scanTarget(root) {
   return { root, files: files.length, scanned: files.length, results, hits: allHits.length, lifecycle, ...scoreHits(allHits) }
 }
 
+/** DSH requires every tool to declare output { schema, render }. */
+const textOutput = () => ({
+  schema: { type: 'object', additionalProperties: true },
+  render: (_args, value) => [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value, null, 2) }],
+})
+
 export function apply(ctx) {
   const scanTool = (name) => ({
     name,
@@ -136,6 +142,7 @@ export function apply(ctx) {
     },
     timeoutMs: 120000,
     isConcurrencySafe: () => true,
+    output: textOutput(),
     presentCall: (a) => ({ card: 'generic', title: 'doctor scan', kind: 'read', rawInput: a }),
     async execute(args) {
       let root = args?.path

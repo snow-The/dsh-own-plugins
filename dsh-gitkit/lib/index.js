@@ -64,6 +64,12 @@ function present(args, kind) {
   return { card: 'generic', title: 'git ' + kind, kind: 'read', rawInput: args }
 }
 
+/** DSH requires every tool to declare output { schema, render }. */
+const textOutput = () => ({
+  schema: { type: 'object', additionalProperties: true },
+  render: (_args, value) => [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value, null, 2) }],
+})
+
 export function apply(ctx) {
   const statusTool = {
     name: 'git_status',
@@ -216,6 +222,7 @@ export function apply(ctx) {
   }
 
   for (const tool of [statusTool, diffTool, logTool, commitTool, branchTool]) {
+    tool.output = textOutput()
     try {
       ctx.tools.register(tool)
     } catch (err) {

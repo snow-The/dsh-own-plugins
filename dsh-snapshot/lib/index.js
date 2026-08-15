@@ -74,6 +74,12 @@ async function readFileSafe(p) {
   return readFile(p, 'utf8')
 }
 
+/** DSH requires every tool to declare output { schema, render }. */
+const textOutput = () => ({
+  schema: { type: 'object', additionalProperties: true },
+  render: (_args, value) => [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value, null, 2) }],
+})
+
 export function apply(ctx) {
   const backupTool = {
     name: 'snapshot_backup',
@@ -174,6 +180,7 @@ export function apply(ctx) {
   }
 
   for (const tool of [backupTool, listTool, restoreTool]) {
+    tool.output = textOutput()
     try { ctx.tools.register(tool) } catch (err) { console.error(`[snapshot] ${tool.name} skipped: ${err}`) }
   }
 }
