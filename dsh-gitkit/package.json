@@ -1,5 +1,5 @@
 {
-  "name": "dsh-gitkit",
+  "name": "@snow-the/dsh-gitkit",
   "version": "0.1.0",
   "description": "Structured Git tools for DeepSeek Harness: status / diff / log / commit / branch with path validation and shell-free exec (own-built, replacing third-party git plugins).",
   "type": "module",

@@ -1,4 +1,4 @@
 # dsh-gitkit bundle layer: structured git tools (shell-free, path-validated).
 - insert:
     - id: gitkit
-      name: 'dsh-gitkit'
+      name: '@snow-the/dsh-gitkit'

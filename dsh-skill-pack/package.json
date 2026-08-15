@@ -1,5 +1,5 @@
 {
-  "name": "dsh-skill-pack",
+  "name": "@snow-the/dsh-skill-pack",
   "version": "0.1.0",
   "description": "Curated engineering skills for DeepSeek Harness: handoff, grilling, teach, spec/ticket workflows, writing skills, and the DESIGN.md format. Cross-platform (pure SKILL.md text, no platform code).",
   "type": "module",
