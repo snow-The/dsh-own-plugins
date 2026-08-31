@@ -78,16 +78,42 @@ function ensureDir(p) {
   fs.mkdirSync(p, { recursive: true });
 }
 var WIKI_DIR = "wiki";
+function parseFrontmatter(text) {
+  const out = {};
+  const m = text.match(/^---\s*\n([\s\S]*?)\n---/);
+  if (!m) return out;
+  for (const line of m[1].split("\n")) {
+    const mm = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+    if (!mm) continue;
+    const key = mm[1];
+    const val = mm[2].trim();
+    if (val.startsWith("[") && val.endsWith("]")) {
+      out[key] = val.slice(1, -1).split(",").map((s) => s.trim()).filter(Boolean);
+    } else {
+      out[key] = val;
+    }
+  }
+  return out;
+}
 function wikiPath(project, kind, id) {
   const safe = id.replace(/[^A-Za-z0-9_.-]/g, "_");
   return path.join(rlabDir(project), WIKI_DIR, kind, safe + ".md");
 }
 function writeWikiPage(project, page) {
   const p = wikiPath(project, page.kind, page.id);
+  const fm = [
+    "---",
+    "id: " + page.id,
+    "kind: " + page.kind,
+    "title: " + page.title.replace(/\n/g, " "),
+    "updated: " + page.updated,
+    page.tags?.length ? "tags: [" + page.tags.join(", ") + "]" : "tags: []",
+    "---",
+    ""
+  ].join("\n");
   const body = [
+    fm,
     "# " + page.title,
-    "",
-    "kind: " + page.kind + "  |  id: " + page.id + "  |  updated: " + page.updated + (page.tags?.length ? "  |  tags: " + page.tags.join(", ") : ""),
     "",
     page.content.trim(),
     ""
@@ -110,9 +136,10 @@ function listWiki(project) {
       if (!f.endsWith(".md")) continue;
       const full = path.join(dir, f);
       const text = fs.readFileSync(full, "utf8");
-      const title = (text.match(/^# (.+)$/m) || [])[1] || f.replace(/\.md$/, "");
-      const updated = (text.match(/updated: ([^|]+)/) || [])[1]?.trim() || "";
-      const tags = (text.match(/tags: (.+)/) || [])[1]?.split(",").map((s) => s.trim()).filter(Boolean) || [];
+      const fm = parseFrontmatter(text);
+      const title = fm.title || (text.match(/^# (.+)$/m) || [])[1] || f.replace(/\.md$/, "");
+      const updated = fm.updated || "";
+      const tags = fm.tags || [];
       pages.push({ kind, id: f.replace(/\.md$/, ""), title, updated, tags, content: "" });
     }
   }
@@ -891,7 +918,7 @@ import * as fs5 from "node:fs";
 import * as path5 from "node:path";
 var KINDS = ["experiment", "literature", "decision", "todo"];
 var REQUIRED_FIELDS = ["id", "kind", "title", "updated"];
-function parseFrontmatter(text) {
+function parseFrontmatter2(text) {
   if (!text.startsWith("---")) return { meta: {}, ok: false, err: "missing YAML frontmatter (must start with ---)" };
   const end = text.indexOf("\n---", 4);
   if (end < 0) return { meta: {}, ok: false, err: "unterminated frontmatter (missing closing ---)" };
@@ -917,7 +944,7 @@ function validateWiki(project) {
       const full = path5.join(dir, f);
       const text = fs5.readFileSync(full, "utf8");
       const id = f.replace(/\.md$/, "");
-      const fm = parseFrontmatter(text);
+      const fm = parseFrontmatter2(text);
       if (!fm.ok) {
         issues.push({ page: kind + "/" + id, severity: "error", message: fm.err });
         continue;
