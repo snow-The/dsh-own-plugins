@@ -23,9 +23,9 @@ test('apply forwards to filesystem provider with bundled skill dir', () => {
   const root = fileURLToPath(new URL('../skills/', import.meta.url))
   assert.ok(existsSync(root))
   const dirs = readdirSync(root, { withFileTypes: true }).filter((d) => d.isDirectory())
-  assert.ok(dirs.length >= 26, 'expected 26+ curated skills, got ' + dirs.length)
+  assert.ok(dirs.length >= 29, 'expected 29+ curated skills, got ' + dirs.length)
   const names = dirs.map((d) => d.name)
-  for (const expected of ['handoff', 'teach', 'grill-me', 'design-md', 'writing-shape']) {
+  for (const expected of ['handoff', 'teach', 'ask-matt', 'design-md', 'writing-shape']) {
     assert.ok(names.includes(expected), 'missing skill: ' + expected)
   }
 })

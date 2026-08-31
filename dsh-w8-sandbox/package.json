@@ -1,0 +1,39 @@
+{
+  "name": "@snow-the/dsh-w8-sandbox",
+  "version": "0.1.0",
+  "description": "w8 world sandbox demo: floating iframe showing the sandbox schematic (map layers, characters, society, narrative, T1/T2/T3).",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "license": "MIT",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "w8",
+    "sandbox",
+    "world"
+  ],
+  "files": [
+    "index.js",
+    "client.js",
+    "web",
+    "cordis.patch.yml",
+    "package.json"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime"
+      ],
+      "immediately": true
+    }
+  }
+}

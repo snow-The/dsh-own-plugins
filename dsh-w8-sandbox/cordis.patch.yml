@@ -1,0 +1,4 @@
+# dsh-w8-sandbox - w8 world sandbox demo iframe for DeepSeek Harness.
+- insert:
+    - id: dsh-w8-sandbox
+      name: '@snow-the/dsh-w8-sandbox'

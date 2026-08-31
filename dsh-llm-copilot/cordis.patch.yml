@@ -1,0 +1,6 @@
+# dsh-llm-copilot — GitHub Copilot LLM provider adapter for DSH
+# 注册 "copilot" provider 路由:OpenAI 兼容 chat/completions(https://api.githubcopilot.com),
+# Bearer = `gh auth token`(TTL 缓存 60s),学生版模型目录 gpt-4o / gpt-4o-mini / gpt-4.1 / gpt-3.5-turbo。
+- insert:
+    - id: dsh-llm-copilot
+      name: '@snow-the/dsh-llm-copilot'

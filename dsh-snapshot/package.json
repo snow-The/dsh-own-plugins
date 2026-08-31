@@ -1,6 +1,6 @@
 {
   "name": "@snow-the/dsh-snapshot",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Backup / restore / rotate snapshots of ~/.dsh for DeepSeek Harness — sha256-verified archives with path-traversal protection (own-built, replacing third-party backup plugins).",
   "type": "module",
   "main": "./dist/index.js",
@@ -12,8 +12,8 @@
     "deepseek-harness"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "test": "node --test test/"
+    "build": "tsc -p tsconfig.json --emitDeclarationOnly && esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js --external:@deepseek-ai/* --log-level=warning",
+    "test": "node --test"
   },
   "files": [
     "dist",
@@ -31,5 +31,13 @@
     "url": "https://github.com/snow-The/dsh-own-plugins.git",
     "directory": "dsh-snapshot"
   },
-  "types": "./dist/index.d.ts"
+  "types": "./dist/index.d.ts",
+  "dependencies": {
+    "hono": "^4.13.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  }
 }

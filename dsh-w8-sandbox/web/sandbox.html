@@ -1,0 +1,120 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<title>w8 世界沙盒 · H3 六邊形地圖</title><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#070a12;color:#cfd6e4;font:13px/1.5 system-ui,"Segoe UI",sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.top{display:flex;align-items:center;gap:12px;padding:9px 14px;border-bottom:1px solid rgba(90,140,220,.25);background:linear-gradient(180deg,#0d1524,#0a0f1a);flex:none}
+.logo{width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#7fb0ff,#1d4ed8 70%);box-shadow:0 0 14px rgba(80,140,255,.6);flex:none}
+.top h1{font-size:14px;font-weight:700;letter-spacing:1px;color:#e8efff}
+.top .sub{color:#6d7a95;font-size:11px}
+.ctrl{margin-left:auto;display:flex;align-items:center;gap:8px}
+.btn{font-size:11px;padding:4px 12px;border-radius:20px;border:1px solid rgba(120,160,255,.35);background:rgba(40,70,140,.25);color:#c9dcff;cursor:pointer;transition:.15s}
+.btn:hover{background:rgba(60,100,200,.4)}
+.tiers{display:flex;gap:6px}
+.tier{font-size:10px;padding:3px 9px;border-radius:20px;border:1px solid #2a3a5a;display:flex;align-items:center;gap:5px;color:#8fa3c8}
+.tier .dot{width:7px;height:7px;border-radius:50%;animation:pulse 2s infinite}
+.t1 .dot{background:#4ade80;box-shadow:0 0 8px #4ade80}.t2 .dot{background:#facc15;box-shadow:0 0 8px #facc15}.t3 .dot{background:#60a5fa;box-shadow:0 0 8px #60a5fa}
+.main{flex:1;display:flex;min-height:0}
+.map-wrap{flex:1;position:relative;min-width:0}
+#map{width:100%;height:100%;display:block}
+.overlay{position:absolute;left:12px;top:12px;background:rgba(10,16,30,.85);border:1px solid rgba(90,140,220,.3);border-radius:10px;padding:9px 12px;font-size:11px;color:#8fa3c8;backdrop-filter:blur(4px)}
+.overlay b{color:#e8efff}.overlay .n{font-size:15px;font-weight:700;color:#7fb0ff}
+.legend{position:absolute;right:12px;bottom:12px;background:rgba(10,16,30,.8);border:1px solid rgba(90,140,220,.25);border-radius:10px;padding:8px 10px;font-size:10px;color:#8fa3c8;display:flex;flex-direction:column;gap:4px}
+.legend .row{display:flex;align-items:center;gap:6px}.legend .sw{width:12px;height:12px;border-radius:3px}
+.side{width:308px;flex:none;border-left:1px solid rgba(90,140,220,.2);background:rgba(9,13,24,.9);overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:10px}
+.card{background:linear-gradient(180deg,#101a2e,#0c1424);border:1px solid rgba(90,140,220,.22);border-radius:12px;padding:11px;box-shadow:0 4px 16px rgba(0,0,0,.35)}
+.card h3{font-size:12px;color:#9fc3ff;margin-bottom:9px;display:flex;align-items:center;gap:6px;letter-spacing:.3px}
+.card h3 .tag{font-size:10px;color:#5c6c8c;font-weight:400}
+.kv{display:grid;grid-template-columns:64px 1fr;gap:3px 8px;font-size:11px}
+.kv .k{color:#6d7a95}.kv .v{color:#dbe6ff}
+.bar{display:flex;align-items:center;gap:6px;margin:4px 0;font-size:10px;color:#7d8aa8}
+.bar .lbl{width:56px;text-align:right;flex:none}
+.bar .tr{flex:1;height:7px;background:#0d1830;border-radius:4px;overflow:hidden;border:1px solid #1a2a4a}
+.bar .fl{height:100%;border-radius:3px;transition:width .6s}
+.bar .val{width:34px;flex:none;color:#9fc3ff}
+#events{list-style:none;font-size:11px;color:#b8c8e8;max-height:170px;overflow-y:auto}
+#events li{padding:4px 0;border-bottom:1px dashed rgba(90,140,220,.15);display:flex;gap:7px;align-items:center}
+#events .tm{color:#4a5a7a;flex:none;font-size:10px}
+#events .em{flex:none}
+#events .src{font-size:9px;padding:1px 6px;border-radius:10px;border:1px solid #2a3a5a;color:#6d7a95;margin-left:auto}
+.footer{flex:none;padding:6px 14px;border-top:1px solid rgba(90,140,220,.2);background:#0a0f1a;font-size:10px;color:#5c6c8c;display:flex;gap:18px;align-items:center}
+#tick{color:#7fb0ff;font-weight:700;letter-spacing:1px}
+.sel{font-size:11px;padding:3px 10px;border-radius:18px;border:1px solid rgba(120,160,255,.35);background:#0d1524;color:#c9dcff;cursor:pointer}
+</style></head><body>
+<div class="top"><div class="logo"></div><h1>W8 · 世界沙盒</h1><span class="sub">H3 六邊形網格 · 概念示意</span>
+<div class="ctrl"><select id="layerSel" class="sel">
+<option value="0">L0 地形</option><option value="1">L1 水文</option><option value="2">L2 生態</option><option value="3">L3 聚落</option><option value="4">L4 社會</option><option value="5">L5 敘事</option>
+</select><button class="btn" id="pauseBtn">⏸ 暫停</button>
+<div class="tiers"><span class="tier t1"><span class="dot"></span>T1 規則</span><span class="tier t2"><span class="dot"></span>T2 生成</span><span class="tier t3"><span class="dot"></span>T3 DSH</span></div></div></div>
+<div class="main"><div class="map-wrap"><canvas id="map"></canvas>
+<div class="overlay">WORLD <span id="wName">Δαλία</span><br><span class="n" id="stBooks">0</span> 書庫 · <span class="n" id="stAssets">0</span> 資產 · <span class="n" id="stRes">0</span> 資源<br>tick <span id="ovTick">0</span></div>
+<div class="legend"><div class="row"><span class="sw" style="background:#1b3a5e"></span>深海</div><div class="row"><span class="sw" style="background:#2d6a4f"></span>平原</div><div class="row"><span class="sw" style="background:#6b705c"></span>山地</div><div class="row"><span class="sw" style="background:#e0e0e0"></span>雪峰</div><div class="row"><span class="sw" style="background:#ffd166"></span>聚落</div></div>
+</div>
+<div class="side">
+<div class="card"><h3>🧑‍🦱 角色個體 <span class="tag">S1 · HEXACO + OCC</span></h3><div class="kv" id="charInfo"></div><div class="bars" id="charBars"></div></div>
+<div class="card"><h3>🏙️ 社會模擬 <span class="tag">S3 · 湧現</span></h3><div class="bars" id="socBars"></div></div>
+<div class="card"><h3>🎬 劇情規劃 <span class="tag">S4 · Drama Manager</span></h3><ul id="events"></ul></div>
+</div></div>
+<div class="footer"><span id="tick">TICK 000</span><span>五子系統 · 概念→世界 · 跨作品融合</span><span id="apiNote"></span></div>
+<script>
+const cv=document.getElementById("map"),cx=cv.getContext("2d");const layerSel=document.getElementById("layerSel");
+let paused=false,tick=0;document.getElementById("pauseBtn").onclick=function(){paused=!paused;this.textContent=paused?"▶ 繼續":"⏸ 暫停";if(!paused)requestAnimationFrame(draw);};
+const RNG=s=>{let x=s>>>0;return()=>((x=(x*1664525+1013904223)>>>0)/4294967296)};const rnd=RNG(20260214);
+// ---- H3-style hex grid (pointy-top, axial) ----
+const HR=26; // hex radius in px
+function hexCorner(cx,cy,size,i){const a=Math.PI/180*(60*i-30);return[cx+size*Math.cos(a),cy+size*Math.sin(a)];}
+function hexPath(x,y){cx.beginPath();for(let i=0;i<6;i++){const[cx0,cy0]=hexCorner(x,y,HR,i);i?cx.lineTo(cx0,cy0):cx.moveTo(cx0,cy0);}cx.closePath();}
+const COLS=Math.ceil(window.innerWidth/(HR*1.75))+2, ROWS=Math.ceil(window.innerHeight/(HR*1.5))+2;
+const hexes=[];for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+const x=(c+ (r%2?0.5:0))*HR*1.75, y=r*HR*1.5;
+const n=Math.sin(c*0.09)*Math.cos(r*0.11)+Math.sin(c*0.037+r*0.043)*1.8;
+const e=n/2.6; // -0.6..0.6
+const elev=e+(Math.random()-0.5)*0.06;
+hexes.push({x,y,r,c,e:elev,pop:0,em:0});}
+const towns=[];for(let i=0;i<9;i++){const h=hexes[Math.floor(rnd()*hexes.length)];
+towns.push({hx:h.x,hy:h.y,r:2+Math.floor(rnd()*2),name:["白榆城","臨水鎮","望月港","青岩堡","霧溪寨","赤楊村","石橋屯","鐵匠鋪","觀星台"][i],pop:200+Math.floor(rnd()*800)});}
+const chars=[];for(let i=0;i<30;i++){chars.push({x:rnd(),y:rnd(),vx:(rnd()-0.5)*0.02,vy:(rnd()-0.5)*0.02,role:["旅人","商販","學者","獵手","祭司","匠人","信使"][i%7],c:"hsl("+Math.floor(rnd()*360)+",75%,65%)"});}
+const hexL=["開放","盡責","外向","宜人","神經質","誠實"];const hv=[62,78,45,70,38,85];
+const soc=[{l:"人口",v:4200,m:9000,c:"#60a5fa"},{l:"糧食",v:3800,m:5000,c:"#4ade80"},{l:"民心",v:62,m:100,c:"#facc15"},{l:"商路",v:3,m:8,c:"#c084fc"}];
+const events=[];const EVENTS=[["🛡️","邊境出現流民","T3 構想安置政策"],["📜","王室發布新稅令","T1 影響民心"],["⚔️","商隊遭劫","S4 支線任務"],["🌾","豐收預兆","T2 節慶描述"],["🔍","旅人打聽傳說","S1 記憶檢索"],["🏛️","城邦議會召開","S3 派系博弈"]];
+function resize(){cv.width=cv.clientWidth;cv.height=cv.clientHeight;}window.addEventListener("resize",resize);resize();
+function terrainCol(e){if(e<-0.3)return"#12294a";if(e<-0.08)return"#1b3a5e";if(e<0.18)return"#2d6a4f";if(e<0.38)return"#6b705c";if(e<0.55)return"#8a8f98";return"#e0e4e8";}
+function draw(){const L=+layerSel.value;
+cx.fillStyle="#070a12";cx.fillRect(0,0,cv.width,cv.height);
+// subtle stars (universe-sandbox vibe)
+cx.fillStyle="rgba(180,200,255,.25)";for(let i=0;i<90;i++){cx.fillRect((i*137.5)%cv.width,(i*89.3)%cv.height,1.5,1.5);}
+hexes.forEach(h=>{
+let col=terrainCol(h.e);
+if(L===1&&h.e<-0.08)col="#1e5f8f";
+if(L===2){col=h.e>0.38?"#9aa4b4":h.e<0.08?"#0f2f4f":"#3f8f5f";}
+if(L===3){const tn=towns.find(t=>Math.abs(t.hx-h.x)<HR*1.2&&Math.abs(t.hy-h.y)<HR*1.2);if(tn)col="#5b4a2e";}
+if(L===4){if(h.pop>0)col="#4a3a6e";}
+if(L===5){if(h.em>0)col="#6e2a3a";}
+hexPath(h.x,h.y);cx.fillStyle=col;cx.fill();
+cx.strokeStyle="rgba(20,30,50,.5)";cx.lineWidth=0.7;cx.stroke();
+});
+if(L>=1){hexes.forEach(h=>{if(h.e<-0.3){cx.fillStyle="rgba(120,200,255,.5)";cx.fillRect(h.x-2,h.y-1,4,2);}});}
+if(L>=3){towns.forEach(t=>{cx.fillStyle="#ffd166";cx.beginPath();cx.arc(t.hx,t.hy,4+Math.sin(tick/8+t.hx)*1.2,0,7);cx.fill();
+cx.fillStyle="rgba(255,209,102,.35)";cx.beginPath();cx.arc(t.hx,t.hy,10,0,7);cx.fill();
+cx.fillStyle="#e8efff";cx.font="10px sans-serif";cx.fillText(t.name,t.hx+10,t.hy+3);});}
+if(L>=4){chars.forEach(ch=>{ch.x+=ch.vx;ch.y+=ch.vy;if(ch.x<0||ch.x>1)ch.vx*=-1;if(ch.y<0||ch.y>1)ch.vy*=-1;
+const px=ch.x*cv.width,py=ch.y*cv.height;
+cx.fillStyle=ch.c;cx.beginPath();cx.arc(px,py,2.6,0,7);cx.fill();
+cx.fillStyle="rgba(255,255,255,.15)";cx.beginPath();cx.arc(px,py,5,0,7);cx.fill();});}
+if(L>=5){cx.fillStyle="rgba(255,120,140,.9)";cx.font="bold 11px sans-serif";
+cx.fillText("◆ 事件節點",cv.width*0.66,cv.height*0.24);cx.fillText("◆ 傳說之地",cv.width*0.3,cv.height*0.78);
+cx.fillStyle="rgba(255,120,140,.15)";cx.beginPath();cx.arc(cv.width*0.66,cv.height*0.21,16,0,7);cx.fill();cx.beginPath();cx.arc(cv.width*0.3,cv.height*0.75,16,0,7);cx.fill();}
+if(!paused)requestAnimationFrame(draw);}
+cv.addEventListener("click",function(ev){const r=cv.getBoundingClientRect(),mx=ev.clientX-r.left,my=ev.clientY-r.top;let best=null,bd=1e9;hexes.forEach(hx=>{const d=Math.hypot(hx.x-mx,hx.y-my);if(d<bd){bd=d;best=hx;}});if(best){best.em=1;events.unshift(["🔆","探索者標記了 ("+Math.round(best.x)+","+Math.round(best.y)+")","S5 世界沙盒"]);if(events.length>8)events.pop();renderEvents();}});function tickSim(){tick++;document.getElementById("tick").textContent="TICK "+String(tick).padStart(3,"0");document.getElementById("ovTick").textContent=tick;
+chars.forEach(c=>{if(Math.random()<0.015)c.role=["旅人","商販","學者","獵手","祭司","匠人","信使"][Math.floor(Math.random()*7)];});
+if(tick%4===0){const ev=EVENTS[Math.floor(Math.random()*EVENTS.length)];events.unshift([ev[0],ev[1]+" · "+ev[2],"T"+Math.floor(Math.random()*3+1)]);if(events.length>8)events.pop();renderEvents();}
+soc[0].v=Math.min(soc[0].m,soc[0].v+Math.floor(Math.random()*50-12));soc[1].v=Math.min(soc[1].m,soc[1].v+Math.floor(Math.random()*35-8));
+towns.forEach(t=>t.pop=Math.min(1500,t.pop+Math.floor(Math.random()*30-10)));
+renderBars();}
+function renderEvents(){const ul=document.getElementById("events");ul.innerHTML="";events.slice(0,6).forEach(e=>{const li=document.createElement("li");li.innerHTML=`<span class="tm">t${tick}</span><span class="em">${e[0]}</span><span>${e[1]}</span><span class="src">${e[2]}</span>`;ul.appendChild(li);});}
+function renderBars(){const cb=document.getElementById("charBars");cb.innerHTML="";for(let i=0;i<6;i++){cb.innerHTML+=`<div class="bar"><span class="lbl">${hexL[i]}</span><div class="tr"><div class="fl" style="width:${hv[i]}%;background:linear-gradient(90deg,#4ade80,#60a5fa)"></div></div><span class="val">${hv[i]}</span></div>`;}
+const sb=document.getElementById("socBars");sb.innerHTML="";soc.forEach(s=>{sb.innerHTML+=`<div class="bar"><span class="lbl">${s.l}</span><div class="tr"><div class="fl" style="width:${s.v/s.m*100}%;background:${s.c}"></div></div><span class="val">${s.v}</span></div>`;});}
+function renderChar(){document.getElementById("charInfo").innerHTML=`<span class="k">名字</span><span class="v">艾琳 · 學者</span><span class="k">情緒</span><span class="v">喜悅 70%</span><span class="k">信念</span><span class="v">玩家意圖：合作 60 / 試探 40</span><span class="k">記憶</span><span class="v">3 近期 · 2 重要</span>`;}
+fetch("/w8/state").then(r=>r.json()).then(s=>{if(s.books!=null){document.getElementById("stBooks").textContent=s.books;document.getElementById("stAssets").textContent=s.assets;document.getElementById("stRes").textContent=s.resources;}else{document.getElementById("apiNote").textContent="(sqlite 未掛載)";}}).catch(()=>{document.getElementById("apiNote").textContent="(API 離線，顯示示意)";});
+renderBars();renderChar();renderEvents();setInterval(tickSim,1100);requestAnimationFrame(draw);
+</script></body></html>

@@ -1,3 +1,4 @@
+import { Hono } from 'hono';
 export declare const name = "snapshot";
 export declare const inject: string[];
 type Json = null | boolean | number | string | Json[] | {
@@ -30,5 +31,11 @@ interface Ctx {
         register: (tool: Tool) => void;
     };
 }
-export declare function apply(ctx: Ctx): void;
+export declare function apply(ctx: Ctx): (() => void) | void;
+export interface AppEnv {
+    Bindings: {
+        ctx: unknown;
+    };
+}
+export declare function createHonoApp(_ctx: unknown): Hono<AppEnv>;
 export {};

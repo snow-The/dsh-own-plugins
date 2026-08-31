@@ -1,6 +1,6 @@
 {
   "name": "@snow-the/dsh-skill-pack",
-  "version": "0.1.0",
+  "version": "0.1.4",
   "description": "Curated engineering skills for DeepSeek Harness: handoff, grilling, teach, spec/ticket workflows, writing skills, and the DESIGN.md format. Cross-platform (pure SKILL.md text, no platform code).",
   "type": "module",
   "main": "./dist/index.js",
@@ -14,8 +14,8 @@
     "cross-platform"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "test": "node --test test/"
+    "build": "tsc -p tsconfig.json --emitDeclarationOnly && esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js --external:@deepseek-ai/* --log-level=warning",
+    "test": "node --test"
   },
   "files": [
     "dist",
@@ -36,5 +36,13 @@
     "bundle": {
       "patch": "./cordis.patch.yml"
     }
+  },
+  "dependencies": {
+    "hono": "^4.13.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
   }
 }
