@@ -1126,7 +1126,14 @@ async function apply(ctx) {
         tags: args?.tags
       });
       const idx = rebuildWikiIndex(project);
-      return "Wrote " + p + "\nIndex: " + idx;
+      let ix = "";
+      try {
+        addDoc(project, "wiki/" + kind + "/" + id, String(args?.title ?? id) + "\n\n" + String(args?.content ?? ""), "wiki");
+        ix = "\nIndexed into related.db \u2014 now searchable via rlab_related.";
+      } catch {
+        ix = "\n(related.db index skipped \u2014 db unavailable)";
+      }
+      return "Wrote " + p + "\nIndex: " + idx + ix;
     }
   }));
   ctx.tools.register(defineTool({
@@ -1469,7 +1476,8 @@ async function apply(ctx) {
       k: { type: "number", description: "results per round (default 8, max 20)" },
       rounds: { type: "number", description: "expansion rounds (default 2, max 4)" },
       external: { type: "boolean", description: "also mine suggestion terms from Wikipedia opensearch (en+zh, network; degrades silently offline)" },
-      topN: { type: "number", description: "lexicon size for keywords (default 30)" }
+      topN: { type: "number", description: "lexicon size for keywords (default 30)" },
+      dir: { type: "string", description: "directory to bulk-ingest (ingest). Default: auto-detect .dsh-lib-analyzer/pages, .rlab/wiki, batch/out" }
     },
     output: textOut,
     timeoutMs: 6e4,
@@ -1520,9 +1528,20 @@ async function apply(ctx) {
         }
         case "ingest": {
           const dir = String(args?.dir ?? "").trim();
-          if (!dir) throw new Error("dir required for ingest (bulk-index .md files, e.g. .dsh-lib-analyzer/pages or batch/out)");
-          const res = ingestDocDir(project, dir);
-          return "Ingested " + res.added + " files (skipped " + res.skipped + ") from " + dir + "\nLexicon updated automatically. Try search or expand now.";
+          const cands = dir ? [dir] : [path6.join(project, ".dsh-lib-analyzer", "pages"), path6.join(project, ".rlab", "wiki"), path6.join(project, "batch", "out")];
+          const parts = [];
+          let total = 0, skipped = 0;
+          for (const cdir of cands) {
+            if (!fs6.existsSync(cdir)) {
+              if (dir) throw new Error("dir not found: " + cdir);
+              continue;
+            }
+            const res = ingestDocDir(project, cdir);
+            total += res.added;
+            skipped += res.skipped;
+            parts.push(path6.basename(cdir) + ":+" + res.added);
+          }
+          return "Ingested " + total + " files (skipped " + skipped + ") \u2014 " + (parts.join(" | ") || "(no ingest dirs found \u2014 pass dir=)") + "\nLexicon updated automatically. Try search or expand now.";
         }
         case "keywords": {
           const kw = topKeywords(project, topN);
@@ -1536,7 +1555,7 @@ async function apply(ctx) {
           return "Docs (" + rows.length + "):\n" + rows.map((x) => "\u2022 #" + x.id + " " + x.title + (x.source ? "  (" + x.source + ")" : "") + "  " + x.added).join("\n");
         }
         default:
-          throw new Error("action must be add|search|expand|keywords|list");
+          throw new Error("action must be add|search|expand|keywords|list|ingest");
       }
     }
   }));
