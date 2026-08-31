@@ -94,6 +94,9 @@ function writeWikiPage(project, page) {
   ].join("\n");
   ensureDir(path.dirname(p));
   fs.writeFileSync(p, body, "utf8");
+  const log = path.join(rlabDir(project), "wiki", "log.md");
+  const stamp = (/* @__PURE__ */ new Date()).toISOString();
+  fs.appendFileSync(log, "- " + stamp + "  " + page.kind + ":" + page.id + "  " + page.title.replace(/[\r\n]+/g, " ") + "\n", "utf8");
   return p;
 }
 function listWiki(project) {

@@ -58,6 +58,10 @@ export function writeWikiPage(project: string, page: WikiPage): string {
   ].join('\n');
   ensureDir(path.dirname(p));
   fs.writeFileSync(p, body, 'utf8');
+  // append-only operation log (AutoSci hard rule: wiki/log.md never rewritten in place)
+  const log = path.join(rlabDir(project), 'wiki', 'log.md');
+  const stamp = new Date().toISOString();
+  fs.appendFileSync(log, '- ' + stamp + '  ' + page.kind + ':' + page.id + '  ' + page.title.replace(/[\r\n]+/g, ' ') + '\n', 'utf8');
   return p;
 }
 
