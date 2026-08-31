@@ -325,6 +325,37 @@ function addDoc(project, title, body, source) {
   mineKeywords(project, 40);
   return Number(r.lastInsertRowid);
 }
+function ingestDocDir(project, dir, maxFiles = 200) {
+  const root = path.resolve(dir);
+  if (!fs.existsSync(root)) return { added: 0, skipped: 0 };
+  let added = 0, skipped = 0;
+  const walk = (d, depth) => {
+    if (depth > 4 || added >= maxFiles) return;
+    for (const f of fs.readdirSync(d, { withFileTypes: true })) {
+      if (f.name.startsWith(".")) continue;
+      const full = path.join(d, f.name);
+      if (f.isDirectory()) {
+        walk(full, depth + 1);
+        continue;
+      }
+      if (!f.name.endsWith(".md") && !f.name.endsWith(".mdx")) {
+        skipped++;
+        continue;
+      }
+      if (added >= maxFiles) return;
+      try {
+        const text = fs.readFileSync(full, "utf8").slice(0, 2e4);
+        const rel = path.relative(root, full);
+        addDoc(project, rel, text, "ingest:" + path.basename(root));
+        added++;
+      } catch {
+        skipped++;
+      }
+    }
+  };
+  walk(root, 0);
+  return { added, skipped };
+}
 function topKeywords(project, topN = 30) {
   const db = openDb(project);
   return db.prepare("SELECT term, score, freq, docs FROM keywords ORDER BY score DESC LIMIT ?").all(topN);
@@ -652,6 +683,7 @@ export {
   formatPapers,
   ftsText,
   hybridSearch,
+  ingestDocDir,
   loadClaims,
   mineKeywords,
   openDb,

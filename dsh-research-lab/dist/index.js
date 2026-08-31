@@ -524,6 +524,37 @@ function addDoc(project, title, body, source) {
   mineKeywords(project, 40);
   return Number(r.lastInsertRowid);
 }
+function ingestDocDir(project, dir, maxFiles = 200) {
+  const root = path2.resolve(dir);
+  if (!fs2.existsSync(root)) return { added: 0, skipped: 0 };
+  let added = 0, skipped = 0;
+  const walk = (d, depth) => {
+    if (depth > 4 || added >= maxFiles) return;
+    for (const f of fs2.readdirSync(d, { withFileTypes: true })) {
+      if (f.name.startsWith(".")) continue;
+      const full = path2.join(d, f.name);
+      if (f.isDirectory()) {
+        walk(full, depth + 1);
+        continue;
+      }
+      if (!f.name.endsWith(".md") && !f.name.endsWith(".mdx")) {
+        skipped++;
+        continue;
+      }
+      if (added >= maxFiles) return;
+      try {
+        const text = fs2.readFileSync(full, "utf8").slice(0, 2e4);
+        const rel = path2.relative(root, full);
+        addDoc(project, rel, text, "ingest:" + path2.basename(root));
+        added++;
+      } catch {
+        skipped++;
+      }
+    }
+  };
+  walk(root, 0);
+  return { added, skipped };
+}
 function topKeywords(project, topN = 30) {
   const db = openDb(project);
   return db.prepare("SELECT term, score, freq, docs FROM keywords ORDER BY score DESC LIMIT ?").all(topN);
@@ -1127,7 +1158,7 @@ async function apply(ctx) {
     description: "Self-building keyword retrieval over a project document store (NLP + SQLite FTS5, zero deps). NO preset lexicon: terms are mined from the corpus via TF-IDF (English words + Chinese n-grams) and the lexicon grows with every added doc. Actions: add (index a doc), search (FTS5), expand (iterative relevance feedback: search \u2192 mine new terms from top hits \u2192 merge into query \u2192 repeat, rounds=1..4), keywords (show the auto-built lexicon), list (all docs). DB at <project>/.rlab/related.db.",
     parameters: {
       project: { type: "string", required: true, description: "absolute path to the research project root" },
-      action: { type: "string", required: true, description: "add | search | expand | keywords | list" },
+      action: { type: "string", required: true, description: "add | search | expand | keywords | list | ingest" },
       title: { type: "string", required: false, description: "doc title (add)" },
       body: { type: "string", required: false, description: "doc body/text (add)" },
       source: { type: "string", required: false, description: "origin, e.g. arxiv:2602.04770 or file path (add)" },
@@ -1183,6 +1214,12 @@ async function apply(ctx) {
           lines.push("", "## Final hits", fmt(res.final));
           lines.push("", "## Auto-built lexicon (top " + res.lexicon.length + ")", res.lexicon.slice(0, 15).map((x) => x.term + "  score=" + x.score.toFixed(2) + " freq=" + x.freq + " docs=" + x.docs).join("\n"));
           return lines.join("\n");
+        }
+        case "ingest": {
+          const dir = String(args?.dir ?? "").trim();
+          if (!dir) throw new Error("dir required for ingest (bulk-index .md files, e.g. .dsh-lib-analyzer/pages or batch/out)");
+          const res = ingestDocDir(project, dir);
+          return "Ingested " + res.added + " files (skipped " + res.skipped + ") from " + dir + "\nLexicon updated automatically. Try search or expand now.";
         }
         case "keywords": {
           const kw = topKeywords(project, topN);

@@ -19,7 +19,7 @@ import {
   appendBench, benchReport, listWiki, readBench, rebuildWikiIndex, rlabDir, writeWikiPage,
   type BenchRow, type WikiKind,
 } from './store.js';
-import { addDoc, expandSearch, hybridSearch, mineKeywords, openDb, search, topKeywords, type RelatedDoc } from './related.js';
+import { addDoc, expandSearch, hybridSearch, ingestDocDir, mineKeywords, openDb, search, topKeywords, type RelatedDoc } from './related.js';
 import { rewriteReport } from './rewrite.js';
 import { addClaims, betaConfidence, citeClaim, claimsReport, extractClaims, loadClaims } from './extract.js';
 import { suggestExternal, suggestZh } from './suggest.js';
@@ -371,7 +371,7 @@ export async function apply(ctx: any) {
     description: 'Self-building keyword retrieval over a project document store (NLP + SQLite FTS5, zero deps). NO preset lexicon: terms are mined from the corpus via TF-IDF (English words + Chinese n-grams) and the lexicon grows with every added doc. Actions: add (index a doc), search (FTS5), expand (iterative relevance feedback: search → mine new terms from top hits → merge into query → repeat, rounds=1..4), keywords (show the auto-built lexicon), list (all docs). DB at <project>/.rlab/related.db.',
     parameters: {
       project: { type: 'string', required: true, description: 'absolute path to the research project root' },
-      action: { type: 'string', required: true, description: 'add | search | expand | keywords | list' },
+      action: { type: 'string', required: true, description: 'add | search | expand | keywords | list | ingest' },
       title: { type: 'string', required: false, description: 'doc title (add)' },
       body: { type: 'string', required: false, description: 'doc body/text (add)' },
       source: { type: 'string', required: false, description: 'origin, e.g. arxiv:2602.04770 or file path (add)' },
@@ -428,6 +428,12 @@ export async function apply(ctx: any) {
           lines.push('', '## Final hits', fmt(res.final));
           lines.push('', '## Auto-built lexicon (top ' + res.lexicon.length + ')', res.lexicon.slice(0, 15).map(x => x.term + '  score=' + x.score.toFixed(2) + ' freq=' + x.freq + ' docs=' + x.docs).join('\n'));
           return lines.join('\n');
+        }
+        case 'ingest': {
+          const dir = String(args?.dir ?? '').trim();
+          if (!dir) throw new Error('dir required for ingest (bulk-index .md files, e.g. .dsh-lib-analyzer/pages or batch/out)');
+          const res = ingestDocDir(project, dir);
+          return 'Ingested ' + res.added + ' files (skipped ' + res.skipped + ') from ' + dir + '\nLexicon updated automatically. Try search or expand now.';
         }
         case 'keywords': {
           const kw = topKeywords(project, topN);
