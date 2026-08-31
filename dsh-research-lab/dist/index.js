@@ -1,7 +1,7 @@
 // src/index.ts
 import { defineTool } from "@deepseek-ai/dsh-tools";
-import * as fs6 from "node:fs";
-import * as path6 from "node:path";
+import * as fs7 from "node:fs";
+import * as path7 from "node:path";
 
 // src/arxiv.ts
 var esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -913,9 +913,176 @@ function cloneAndStudy(url, outDir, maxTree = 30) {
   return { repo, dir, readme, claudeMd, tree, files, noteFile };
 }
 
-// src/validate.ts
+// src/index.ts
+import * as os2 from "node:os";
+
+// src/ocr.ts
 import * as fs5 from "node:fs";
+import * as os from "node:os";
 import * as path5 from "node:path";
+var JOB_URL = "https://paddleocr.aistudio-app.com/api/v2/ocr/jobs";
+var OCR_MODELS = ["PaddleOCR-VL-1.6", "PP-OCRv6"];
+function ocrToken() {
+  const fromEnv = process.env.PADDLE_OCR_TOKEN;
+  if (fromEnv && fromEnv.trim()) return fromEnv.trim();
+  const f = path5.join(os.homedir(), ".dsh", "paddle-ocr.token");
+  try {
+    const t = fs5.readFileSync(f, "utf8").trim();
+    if (t) return t;
+  } catch {
+  }
+  throw new Error("PaddleOCR token not found \u2014 set env PADDLE_OCR_TOKEN or write it to " + f);
+}
+function bestPayload(model) {
+  if (model === "PaddleOCR-VL-1.6") {
+    return {
+      useDocOrientationClassify: true,
+      // rotated / portrait text
+      useDocUnwarping: true,
+      // curved/scan warping
+      useLayoutDetection: true,
+      // full layout analysis (titles/paragraphs/figures/tables)
+      useChartRecognition: true,
+      // charts incl. complex flow diagrams
+      layoutDetModelName: "large",
+      layoutShapeMode: "auto",
+      showFormulaNumber: true,
+      mergeTables: true,
+      // cross-page table merge
+      relevelTitles: true,
+      // heading levels
+      prettifyMarkdown: true,
+      visualize: false
+    };
+  }
+  return {
+    useDocOrientationClassify: true,
+    useDocUnwarping: true,
+    useTextlineOrientation: true,
+    textDetLimitSideLen: 128,
+    // higher-res text detection (default 64)
+    textDetLimitType: "min"
+  };
+}
+var sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function submitLocal(abs, model, token) {
+  const fd = new FormData();
+  fd.append("model", model);
+  fd.append("optionalPayload", JSON.stringify(bestPayload(model)));
+  fd.append("file", new Blob([fs5.readFileSync(abs)]), path5.basename(abs));
+  const resp = await fetch(JOB_URL, { method: "POST", headers: { Authorization: "bearer " + token }, body: fd });
+  if (resp.status !== 200) throw new Error("submit failed " + resp.status + ": " + (await resp.text()).slice(0, 300));
+  const j = await resp.json();
+  return String(j.data.jobId);
+}
+var CT_EXT = { "application/pdf": "pdf", "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/bmp": "bmp", "image/tiff": "tiff" };
+async function downloadToTemp(file) {
+  const r = await fetch(file, { headers: { "User-Agent": "Mozilla/5.0 dsh-research-lab" } });
+  if (!r.ok) throw new Error("download failed " + r.status);
+  let name2 = path5.basename(new URL(file).pathname) || "doc";
+  name2 = name2.replace(/[^\w.-]+/g, "-");
+  const OK_EXT = ["pdf", "png", "jpg", "jpeg", "webp", "bmp", "tiff", "doc", "docx", "xls", "xlsx", "ppt", "pptx"];
+  const m = name2.match(/\.([a-z0-9]{2,5})$/i);
+  const ext = m ? m[1].toLowerCase() : "";
+  if (!OK_EXT.includes(ext)) {
+    const ct = (r.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+    const cext = CT_EXT[ct];
+    if (!cext) throw new Error("unsupported content-type from URL: " + ct);
+    name2 = name2.replace(/\.[^.]*$/, "") + "." + cext;
+  }
+  const tmp = path5.join(os.tmpdir(), "rlab-ocr-" + Date.now() + "-" + name2);
+  fs5.writeFileSync(tmp, Buffer.from(await r.arrayBuffer()));
+  return tmp;
+}
+async function submitJob(file, model, token) {
+  if (!/^https?:\/\//i.test(file)) {
+    const abs = path5.resolve(file);
+    if (!fs5.existsSync(abs)) throw new Error("file not found: " + abs);
+    return submitLocal(abs, model, token);
+  }
+  const resp = await fetch(JOB_URL, {
+    method: "POST",
+    headers: { Authorization: "bearer " + token, "Content-Type": "application/json" },
+    body: JSON.stringify({ fileUrl: file, model, optionalPayload: bestPayload(model) })
+  });
+  if (resp.status === 200) {
+    const j = await resp.json();
+    return String(j.data.jobId);
+  }
+  const tmp = await downloadToTemp(file);
+  try {
+    return await submitLocal(tmp, model, token);
+  } finally {
+    try {
+      fs5.unlinkSync(tmp);
+    } catch {
+    }
+  }
+}
+async function runOcr(file, model, opts = {}) {
+  const token = opts.token ?? ocrToken();
+  const started = Date.now();
+  const jobId = await submitJob(file, model, token);
+  const deadline = started + (opts.maxWaitMs ?? 3e5);
+  while (Date.now() < deadline) {
+    await sleep(opts.pollMs ?? 5e3);
+    const r = await fetch(JOB_URL + "/" + jobId, { headers: { Authorization: "bearer " + token } });
+    if (r.status !== 200) throw new Error("poll failed " + r.status + ": " + (await r.text()).slice(0, 200));
+    const j = await r.json();
+    const st = j.data.state;
+    if (st === "done") {
+      const url = j.data.resultUrl?.jsonUrl;
+      if (!url) throw new Error("job done but no result jsonUrl");
+      return { jobId, jsonlUrl: url, pages: j.data.extractProgress?.extractedPages ?? 0, ms: Date.now() - started };
+    }
+    if (st === "failed") throw new Error("OCR job failed: " + (j.data.errorMsg ?? "unknown error"));
+  }
+  throw new Error("OCR job timed out after " + Math.round((Date.now() - started) / 1e3) + "s (job " + jobId + ")");
+}
+async function fetchOcrMarkdown(jsonlUrl, outDir) {
+  fs5.mkdirSync(outDir, { recursive: true });
+  const r = await fetch(jsonlUrl);
+  if (!r.ok) throw new Error("result download failed " + r.status);
+  const parts = [];
+  let images = 0, chars = 0;
+  for (const line of r.text ? (await r.text()).split("\n").filter(Boolean) : []) {
+    let obj;
+    try {
+      obj = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    for (const res of obj.result?.layoutParsingResults ?? []) {
+      const md = res.markdown?.text ?? "";
+      if (md) {
+        parts.push(md);
+        chars += md.length;
+      }
+      const imgs = res.markdown?.images ?? {};
+      for (const [rel, url] of Object.entries(imgs)) {
+        try {
+          const ir = await fetch(url);
+          if (ir.ok) {
+            const p = path5.join(outDir, rel);
+            fs5.mkdirSync(path5.dirname(p), { recursive: true });
+            fs5.writeFileSync(p, Buffer.from(await ir.arrayBuffer()));
+            images++;
+          }
+        } catch {
+        }
+      }
+    }
+  }
+  if (!parts.length) throw new Error("no markdown content in OCR result");
+  const mdPath = path5.join(outDir, "doc.md");
+  const text = parts.join("\n\n---\n\n");
+  fs5.writeFileSync(mdPath, text, "utf8");
+  return { mdPath, pages: parts.length, images, chars, text };
+}
+
+// src/validate.ts
+import * as fs6 from "node:fs";
+import * as path6 from "node:path";
 var KINDS = ["experiment", "literature", "decision", "todo"];
 var REQUIRED_FIELDS = ["id", "kind", "title", "updated"];
 function parseFrontmatter2(text) {
@@ -931,18 +1098,18 @@ function parseFrontmatter2(text) {
   return { meta, ok: true };
 }
 function validateWiki(project) {
-  const root = path5.join(rlabDir(project), "wiki");
+  const root = path6.join(rlabDir(project), "wiki");
   const issues = [];
   const graph = { edges: [], dangling: [], isolated: [] };
   const pages = listWiki(project);
   const idSet = new Set(pages.map((p) => p.id));
   for (const kind of KINDS) {
-    const dir = path5.join(root, kind);
-    if (!fs5.existsSync(dir)) continue;
-    for (const f of fs5.readdirSync(dir)) {
+    const dir = path6.join(root, kind);
+    if (!fs6.existsSync(dir)) continue;
+    for (const f of fs6.readdirSync(dir)) {
       if (!f.endsWith(".md") || f === "index.md") continue;
-      const full = path5.join(dir, f);
-      const text = fs5.readFileSync(full, "utf8");
+      const full = path6.join(dir, f);
+      const text = fs6.readFileSync(full, "utf8");
       const id = f.replace(/\.md$/, "");
       const fm = parseFrontmatter2(text);
       if (!fm.ok) {
@@ -1275,8 +1442,8 @@ async function apply(ctx) {
       const text = lines.join("\n");
       const outFile = args?.outputFile ? String(args.outputFile) : "";
       if (outFile) {
-        fs6.mkdirSync(path6.dirname(path6.resolve(outFile)), { recursive: true });
-        fs6.writeFileSync(outFile, text + "\n", "utf8");
+        fs7.mkdirSync(path7.dirname(path7.resolve(outFile)), { recursive: true });
+        fs7.writeFileSync(outFile, text + "\n", "utf8");
         return "Review written to " + outFile + "\n\n" + text;
       }
       return text;
@@ -1315,12 +1482,12 @@ async function apply(ctx) {
       }
       all.sort((a, b) => (b.published || "").localeCompare(a.published || ""));
       const date = today();
-      const dir = path6.join(rlabDir(project), "digests");
-      fs6.mkdirSync(dir, { recursive: true });
-      const file = path6.join(dir, date + ".md");
+      const dir = path7.join(rlabDir(project), "digests");
+      fs7.mkdirSync(dir, { recursive: true });
+      const file = path7.join(dir, date + ".md");
       const lines = ["# arXiv digest \u2014 " + date, "", "queries: " + queries.join(" | "), "papers: " + all.length, ""];
       lines.push(formatPapers(all, withSummary));
-      fs6.writeFileSync(file, lines.join("\n") + "\n", "utf8");
+      fs7.writeFileSync(file, lines.join("\n") + "\n", "utf8");
       return "Digest written to " + file + " (" + all.length + " papers)\n\n" + formatPapers(all.slice(0, 10), withSummary);
     }
   }));
@@ -1459,7 +1626,7 @@ async function apply(ctx) {
       const project = String(args?.project ?? "").trim();
       const url = String(args?.url ?? "").trim();
       if (!project || !url) throw new Error("project and url required");
-      const res = cloneAndStudy(url, path6.join(rlabDir(project), "refs"));
+      const res = cloneAndStudy(url, path7.join(rlabDir(project), "refs"));
       return "Cloned " + res.repo + " -> " + res.dir + " (" + res.files + " files)" + String.fromCharCode(10) + "Study note: " + res.noteFile + String.fromCharCode(10) + String.fromCharCode(10) + "## README excerpt" + String.fromCharCode(10) + res.readme.slice(0, 400) + String.fromCharCode(10) + String.fromCharCode(10) + "## Structure" + String.fromCharCode(10) + res.tree.slice(0, 15).join(String.fromCharCode(10));
     }
   }));
@@ -1528,18 +1695,18 @@ async function apply(ctx) {
         }
         case "ingest": {
           const dir = String(args?.dir ?? "").trim();
-          const cands = dir ? [dir] : [path6.join(project, ".dsh-lib-analyzer", "pages"), path6.join(project, ".rlab", "wiki"), path6.join(project, "batch", "out")];
+          const cands = dir ? [dir] : [path7.join(project, ".dsh-lib-analyzer", "pages"), path7.join(project, ".rlab", "wiki"), path7.join(project, "batch", "out")];
           const parts = [];
           let total = 0, skipped = 0;
           for (const cdir of cands) {
-            if (!fs6.existsSync(cdir)) {
+            if (!fs7.existsSync(cdir)) {
               if (dir) throw new Error("dir not found: " + cdir);
               continue;
             }
             const res = ingestDocDir(project, cdir);
             total += res.added;
             skipped += res.skipped;
-            parts.push(path6.basename(cdir) + ":+" + res.added);
+            parts.push(path7.basename(cdir) + ":+" + res.added);
           }
           return "Ingested " + total + " files (skipped " + skipped + ") \u2014 " + (parts.join(" | ") || "(no ingest dirs found \u2014 pass dir=)") + "\nLexicon updated automatically. Try search or expand now.";
         }
@@ -1560,6 +1727,48 @@ async function apply(ctx) {
     }
   }));
   ctx.tools.register(defineTool({
+    name: "rlab_ocr",
+    description: "Submit a document (local file path or http(s) URL) to PaddleOCR cloud and auto-ingest it into the research lab: downloads markdown + images into <project>/ocr/<name>/, indexes into related.db, optionally writes a literature wiki page. Models: PaddleOCR-VL-1.6 (all-round: complex layouts, flow charts) | PP-OCRv6 (light: fixed charts). Quality-max params enabled. Token from env PADDLE_OCR_TOKEN or ~/.dsh/paddle-ocr.token (never hardcoded). Free quota 20000 pages/day per model.",
+    parameters: {
+      file: { type: "string", required: true, description: "local file path or http(s) URL of the document (PDF/PNG/JPG...) to OCR" },
+      model: { type: "string", description: "PaddleOCR-VL-1.6 (default, all-round) | PP-OCRv6 (light)" },
+      project: { type: "string", description: "research project root \u2014 used for outDir/index/wiki (optional)" },
+      outDir: { type: "string", description: "output dir for markdown+images (default <project>/ocr/<name>/ or ~/dsh-ocr/<name>/)" },
+      index: { type: "boolean", description: "index the markdown into related.db (default true)" },
+      wiki: { type: "boolean", description: "also write a literature wiki page (default false)" },
+      maxWaitMs: { type: "number", description: "job poll timeout in ms (default 300000)" }
+    },
+    output: textOut,
+    timeoutMs: 6e5,
+    async execute(args) {
+      const file = String(args?.file ?? "").trim();
+      if (!file) throw new Error("file required (local path or http(s) URL)");
+      const model = String(args?.model ?? "PaddleOCR-VL-1.6").trim();
+      if (!OCR_MODELS.includes(model)) throw new Error("model must be " + OCR_MODELS.join(" | "));
+      const project = String(args?.project ?? "").trim();
+      const t0 = Date.now();
+      const job = await runOcr(file, model, { maxWaitMs: Number(args?.maxWaitMs) || 3e5 });
+      const base = path7.basename(file).replace(/\.[^.]+$/, "").replace(/[^\w\u4e00-\u9fff-]+/g, "-").slice(0, 60) || "doc";
+      const outDir = String(args?.outDir ?? "").trim() || (project ? path7.join(project, "ocr", base) : path7.join(os2.homedir(), "dsh-ocr", base));
+      const md = await fetchOcrMarkdown(job.jsonlUrl, outDir);
+      const lines = [
+        "\u2705 OCR done: " + file,
+        "model: " + model + "  pages: " + md.pages + "  chars: " + md.chars + "  images: " + md.images + "  time: " + Math.round((Date.now() - t0) / 1e3) + "s",
+        "md: " + md.mdPath
+      ];
+      if (project && args?.index !== false) {
+        const id = addDoc(project, "ocr/" + base + "/doc.md", md.text, "paddleocr:" + model);
+        lines.push("indexed into related.db: doc #" + id);
+      }
+      if (project && args?.wiki === true) {
+        const p = writeWikiPage(project, { kind: "literature", id: base, title: base + " (OCR)", updated: today(), content: md.text.slice(0, 4e3) + "\n\n---\nSource: " + file + " (PaddleOCR " + model + ")", tags: ["ocr"] });
+        lines.push("wiki page: " + p);
+      }
+      lines.push("quota note: 20000 free pages/day per model");
+      return lines.join("\n");
+    }
+  }));
+  ctx.tools.register(defineTool({
     name: "rlab_status",
     description: "One-screen state of a research project: wiki page counts per kind, benchmark ledger summary (models \xD7 tasks with latest scores), and open TODOs. Read this first when continuing work on a project.",
     parameters: {
@@ -1571,7 +1780,7 @@ async function apply(ctx) {
       const project = String(args?.project ?? "").trim();
       if (!project) throw new Error("project required");
       const dir = rlabDir(project);
-      if (!fs6.existsSync(dir)) return "No .rlab/ directory at " + project + " yet. Start with rlab_wiki or rlab_bench.";
+      if (!fs7.existsSync(dir)) return "No .rlab/ directory at " + project + " yet. Start with rlab_wiki or rlab_bench.";
       const pages = listWiki(project);
       const count = (k) => pages.filter((p) => p.kind === k).length;
       const benchRows = readBench(project);

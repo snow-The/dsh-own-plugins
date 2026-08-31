@@ -24,6 +24,8 @@ import { rewriteReport } from './rewrite.js';
 import { addClaims, betaConfidence, citeClaim, claimsReport, extractClaims, loadClaims } from './extract.js';
 import { suggestExternal, suggestZh } from './suggest.js';
 import { cloneAndStudy } from './ref.js';
+import * as os from 'node:os';
+import { OCR_MODELS, fetchOcrMarkdown, ocrToken, runOcr, type OcrModel } from './ocr.js';
 
 const textOut = { schema: { type: 'string' }, render: (_a: unknown, v: unknown) => [{ type: 'text', text: String(v) }] };
 const today = () => new Date().toISOString().slice(0, 10);
@@ -530,6 +532,48 @@ export async function apply(ctx: any) {
         default:
           throw new Error('action must be add|search|expand|keywords|list|ingest');
       }
+    },
+  }));
+
+  // ---------------- rlab_ocr: PaddleOCR document ingestion ----------------
+  ctx.tools.register(defineTool({
+    name: 'rlab_ocr',
+    description: 'Submit a document (local file path or http(s) URL) to PaddleOCR cloud and auto-ingest it into the research lab: downloads markdown + images into <project>/ocr/<name>/, indexes into related.db, optionally writes a literature wiki page. Models: PaddleOCR-VL-1.6 (all-round: complex layouts, flow charts) | PP-OCRv6 (light: fixed charts). Quality-max params enabled. Token from env PADDLE_OCR_TOKEN or ~/.dsh/paddle-ocr.token (never hardcoded). Free quota 20000 pages/day per model.',
+    parameters: {
+      file: { type: 'string', required: true, description: 'local file path or http(s) URL of the document (PDF/PNG/JPG...) to OCR' },
+      model: { type: 'string', description: 'PaddleOCR-VL-1.6 (default, all-round) | PP-OCRv6 (light)' },
+      project: { type: 'string', description: 'research project root — used for outDir/index/wiki (optional)' },
+      outDir: { type: 'string', description: 'output dir for markdown+images (default <project>/ocr/<name>/ or ~/dsh-ocr/<name>/)' },
+      index: { type: 'boolean', description: 'index the markdown into related.db (default true)' },
+      wiki: { type: 'boolean', description: 'also write a literature wiki page (default false)' },
+      maxWaitMs: { type: 'number', description: 'job poll timeout in ms (default 300000)' },
+    },
+    output: textOut,
+    timeoutMs: 600000,
+    async execute(args: any) {
+      const file = String(args?.file ?? '').trim();
+      if (!file) throw new Error('file required (local path or http(s) URL)');
+      const model = (String(args?.model ?? 'PaddleOCR-VL-1.6').trim() as OcrModel);
+      if (!OCR_MODELS.includes(model)) throw new Error('model must be ' + OCR_MODELS.join(' | '));
+      const project = String(args?.project ?? '').trim();
+      const t0 = Date.now();
+      const job = await runOcr(file, model, { maxWaitMs: Number(args?.maxWaitMs) || 300000 });
+      const base = path.basename(file).replace(/\.[^.]+$/, '').replace(/[^\w\u4e00-\u9fff-]+/g, '-').slice(0, 60) || 'doc';
+      const outDir = String(args?.outDir ?? '').trim() || (project ? path.join(project, 'ocr', base) : path.join(os.homedir(), 'dsh-ocr', base));
+      const md = await fetchOcrMarkdown(job.jsonlUrl, outDir);
+      const lines = ['✅ OCR done: ' + file,
+        'model: ' + model + '  pages: ' + md.pages + '  chars: ' + md.chars + '  images: ' + md.images + '  time: ' + Math.round((Date.now() - t0) / 1000) + 's',
+        'md: ' + md.mdPath];
+      if (project && args?.index !== false) {
+        const id = addDoc(project, 'ocr/' + base + '/doc.md', md.text, 'paddleocr:' + model);
+        lines.push('indexed into related.db: doc #' + id);
+      }
+      if (project && args?.wiki === true) {
+        const p = writeWikiPage(project, { kind: 'literature', id: base, title: base + ' (OCR)', updated: today(), content: md.text.slice(0, 4000) + '\n\n---\nSource: ' + file + ' (PaddleOCR ' + model + ')', tags: ['ocr'] });
+        lines.push('wiki page: ' + p);
+      }
+      lines.push('quota note: 20000 free pages/day per model');
+      return lines.join('\n');
     },
   }));
 
