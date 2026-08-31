@@ -137,9 +137,9 @@ function listWiki(project) {
       const full = path.join(dir, f);
       const text = fs.readFileSync(full, "utf8");
       const fm = parseFrontmatter(text);
-      const title = fm.title || (text.match(/^# (.+)$/m) || [])[1] || f.replace(/\.md$/, "");
-      const updated = fm.updated || "";
-      const tags = fm.tags || [];
+      const title = String(fm.title || (text.match(/^# (.+)$/m) || [])[1] || f.replace(/\.md$/, ""));
+      const updated = String(fm.updated || "");
+      const tags = Array.isArray(fm.tags) ? fm.tags : fm.tags ? [String(fm.tags)] : [];
       pages.push({ kind, id: f.replace(/\.md$/, ""), title, updated, tags, content: "" });
     }
   }
@@ -997,6 +997,65 @@ function validateWiki(project) {
   return lines.join("\n");
 }
 
+// src/latex.ts
+var PREAMBLE_ZH = [
+  "\\documentclass[11pt,a4paper]{article}",
+  "\\usepackage[UTF8]{ctex}",
+  "\\usepackage{geometry}",
+  "\\geometry{left=3.00cm,right=2.75cm,top=2.63cm,bottom=2.96cm}",
+  "\\usepackage{amsmath,amssymb,amsfonts,bm}",
+  "\\usepackage{graphicx,booktabs,multirow,array}",
+  "\\usepackage{hyperref}",
+  "\\CJKsetecglue{\\hskip 0.15em plus 0.05em minus 0.05em}",
+  "\\setlength{\\parindent}{2em} \\usepackage{indentfirst}"
+].join("\n");
+var TITLES = {
+  "paper-zh": "\u4E2D\u6587\u8BBA\u6587",
+  "thesis-zh": "\u5B66\u4F4D\u8BBA\u6587",
+  "nsfc-zh": "\u57FA\u91D1\u7533\u8BF7\u4E66",
+  "paper-en": "English Paper"
+};
+var BODY = {
+  "paper-zh": "\\section{\u5F15\u8A00}\n\\section{\u65B9\u6CD5}\n\\section{\u5B9E\u9A8C}\n\\section{\u7ED3\u8BBA}",
+  "thesis-zh": "\\chapter{\u7EEA\u8BBA}\n\\chapter{\u76F8\u5173\u5DE5\u4F5C}\n\\chapter{\u65B9\u6CD5}\n\\chapter{\u5B9E\u9A8C\u4E0E\u8BA8\u8BBA}\n\\chapter{\u7ED3\u8BBA\u4E0E\u5C55\u671B}",
+  "nsfc-zh": "\\section{\u7ACB\u9879\u4F9D\u636E}\n\\section{\u7814\u7A76\u5185\u5BB9\u4E0E\u76EE\u6807}\n\\section{\u7814\u7A76\u65B9\u6848\u4E0E\u6280\u672F\u8DEF\u7EBF}\n\\section{\u521B\u65B0\u70B9}",
+  "paper-en": "\\section{Introduction}\n\\section{Method}\n\\section{Experiments}\n\\section{Conclusion}"
+};
+function genLatex(kind, meta = {}) {
+  const zh = kind !== "paper-en";
+  const lines = [];
+  lines.push("% rlab_latex: " + TITLES[kind] + " skeleton (XeLaTeX)");
+  lines.push(PREAMBLE_ZH);
+  lines.push("\\title{" + (meta.title ?? "\u5F85\u5B9A\u6807\u9898") + "}");
+  lines.push("\\author{" + (meta.author ?? "\u4F5C\u8005") + (meta.affiliation ? "\\thanks{" + meta.affiliation + "}" : "") + "}");
+  lines.push("\\date{\\today}");
+  lines.push("\\begin{document}");
+  lines.push("\\maketitle");
+  if (meta.abstract) lines.push((zh ? "\\begin{abstract}" : "\\begin{abstract}") + meta.abstract + (zh ? "\\end{abstract}" : "\\end{abstract}"));
+  if (meta.keywords) lines.push("\\noindent\\textbf{" + (zh ? "\u5173\u952E\u8BCD" : "Keywords") + ":} " + meta.keywords);
+  lines.push(BODY[kind]);
+  if (meta.extra) lines.push(meta.extra);
+  lines.push("\\end{document}");
+  return lines.join("\n");
+}
+function lintLatex(text) {
+  const issues = [];
+  if (!/\\documentclass/.test(text)) issues.push("\u26A0\uFE0F \u7F3A\u5C11 \\documentclass");
+  if (/[""„“”]/.test(text)) issues.push("\u26A0\uFE0F \u53D1\u73B0\u76F4\u5F15\u53F7/\u5F2F\u5F15\u53F7\u6DF7\u7528: \u4E2D\u6587\u5E94\u4F7F\u7528 \u201C \u201D \u6216 \u201C\u201D \u5168\u89D2\u5F15\u53F7");
+  const b = (text.match(/\\begin\{([a-z*]+)\}/g) ?? []).map((s) => s.replace(/\\begin\{(.+)\}/, "$1"));
+  const e = (text.match(/\\end\{([a-z*]+)\}/g) ?? []).map((s) => s.replace(/\\end\{(.+)\}/, "$1"));
+  for (const env of /* @__PURE__ */ new Set([...b, ...e])) {
+    const nb = b.filter((x) => x === env).length, ne = e.filter((x) => x === env).length;
+    if (nb !== ne) issues.push("\u274C begin/end \u4E0D\u914D\u5BF9: " + env + " (" + nb + "/" + ne + ")");
+  }
+  const ds = (text.match(/\$/g) ?? []).length;
+  if (ds % 2 !== 0) issues.push("\u274C $ \u6570\u91CF\u4E3A\u5947\u6570 (" + ds + "), \u6570\u5B66\u6A21\u5F0F\u672A\u95ED\u5408");
+  if (text.includes("\\citep{") || text.includes("\\cite{")) issues.push("\u2139\uFE0F \u5F15\u7528\u5EFA\u8BAE\u4F7F\u7528 biblatex: \\addbibresource + \\parencite");
+  if (text.includes("  ")) issues.push("\u2139\uFE0F \u5B58\u5728\u8FDE\u7EED\u7A7A\u683C (TeX \u4F1A\u6298\u53E0, \u5EFA\u8BAE\u68C0\u67E5)");
+  return issues.length ? issues.join("\n") : "\u2705 \u672A\u53D1\u73B0\u660E\u663E\u95EE\u9898";
+}
+var LATEX_KINDS = ["paper-zh", "thesis-zh", "nsfc-zh", "paper-en"];
+
 // src/index.ts
 var textOut = { schema: { type: "string" }, render: (_a, v) => [{ type: "text", text: String(v) }] };
 var today = () => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
@@ -1015,6 +1074,28 @@ async function apply(ctx) {
       const project = String(args?.project ?? "").trim();
       if (!project) throw new Error("project required");
       return validateWiki(project);
+    }
+  }));
+  ctx.tools.register(defineTool({
+    name: "rlab_latex",
+    description: "Scaffold a Chinese/English research LaTeX document (paper/thesis/NSFC skeleton with ctex + xeCJK preamble) or lint an existing .tex for common issues (unpaired begin/end, odd dollar count, quote style). Zero-dependency pure template registry (hono-style).".replace(/hono-style/, "hono-style"),
+    parameters: {
+      kind: { type: "string", required: true, description: "paper-zh | thesis-zh | nsfc-zh | paper-en" },
+      title: { type: "string", description: "document title" },
+      author: { type: "string", description: "author name" },
+      affiliation: { type: "string", description: "affiliation (as \\thanks)" },
+      keywords: { type: "string", description: "comma-separated keywords" },
+      abstract: { type: "string", description: "abstract text" },
+      text: { type: "string", description: "existing .tex content to lint (when set, lints instead of generating)" }
+    },
+    output: textOut,
+    timeoutMs: 15e3,
+    async execute(args) {
+      const kind = String(args?.kind ?? "").trim();
+      const text = String(args?.text ?? "").trim();
+      if (text) return lintLatex(text);
+      if (!LATEX_KINDS.includes(kind)) throw new Error("kind must be one of: " + LATEX_KINDS.join(", "));
+      return genLatex(kind, { title: args?.title, author: args?.author, affiliation: args?.affiliation, keywords: args?.keywords, abstract: args?.abstract });
     }
   }));
   ctx.tools.register(defineTool({

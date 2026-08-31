@@ -32,6 +32,7 @@ export const name = 'dsh-research-lab';
 export const inject = ['tools'];
 
 import { validateWiki } from './validate.js';
+import { genLatex, lintLatex, LATEX_KINDS } from './latex.js';
 
 export async function apply(ctx: any) {
   // ---------------- rlab_validate ----------------
@@ -48,6 +49,31 @@ export async function apply(ctx: any) {
       const project = String(args?.project ?? '').trim();
       if (!project) throw new Error('project required');
       return validateWiki(project);
+    },
+  }));
+
+  // ---------------- rlab_latex ----------------
+  ctx.tools.register(defineTool({
+    name: 'rlab_latex',
+    description: 'Scaffold a Chinese/English research LaTeX document (paper/thesis/NSFC skeleton with ctex + xeCJK preamble) or lint an existing .tex for common issues (unpaired begin/end, odd dollar count, quote style). Zero-dependency pure template registry (hono-style).'
+    .replace(/hono-style/, 'hono-style'),
+    parameters: {
+      kind: { type: 'string', required: true, description: 'paper-zh | thesis-zh | nsfc-zh | paper-en' },
+      title: { type: 'string', description: 'document title' },
+      author: { type: 'string', description: 'author name' },
+      affiliation: { type: 'string', description: 'affiliation (as \\thanks)' },
+      keywords: { type: 'string', description: 'comma-separated keywords' },
+      abstract: { type: 'string', description: 'abstract text' },
+      text: { type: 'string', description: 'existing .tex content to lint (when set, lints instead of generating)' },
+    },
+    output: textOut,
+    timeoutMs: 15000,
+    async execute(args: any) {
+      const kind = String(args?.kind ?? '').trim() as any;
+      const text = String(args?.text ?? '').trim();
+      if (text) return lintLatex(text);
+      if (!LATEX_KINDS.includes(kind)) throw new Error('kind must be one of: ' + LATEX_KINDS.join(', '));
+      return genLatex(kind, { title: args?.title, author: args?.author, affiliation: args?.affiliation, keywords: args?.keywords, abstract: args?.abstract });
     },
   }));
 

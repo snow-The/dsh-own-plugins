@@ -105,9 +105,9 @@ export function listWiki(project: string): WikiPage[] {
       const full = path.join(dir, f);
       const text = fs.readFileSync(full, 'utf8');
       const fm = parseFrontmatter(text);
-      const title = fm.title || (text.match(/^# (.+)$/m) || [])[1] || f.replace(/\.md$/, '');
-      const updated = fm.updated || '';
-      const tags = fm.tags || [];
+      const title = String(fm.title || (text.match(/^# (.+)$/m) || [])[1] || f.replace(/\.md$/, ''));
+      const updated = String(fm.updated || '');
+      const tags: string[] = Array.isArray(fm.tags) ? fm.tags : (fm.tags ? [String(fm.tags)] : []);
       pages.push({ kind, id: f.replace(/\.md$/, ''), title, updated, tags, content: '' });
     }
   }
