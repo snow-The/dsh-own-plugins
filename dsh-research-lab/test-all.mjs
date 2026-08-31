@@ -803,6 +803,83 @@ function benchReport(project, model, task) {
   lines.push("_Ledger: " + benchFile(project) + "_");
   return lines.join("\n");
 }
+
+// src/ref.ts
+import { execSync } from "node:child_process";
+import * as fs4 from "node:fs";
+import * as path4 from "node:path";
+function cloneAndStudy(url, outDir, maxTree = 30) {
+  const m = url.match(/github\.com\/([^\/]+)\/([^\/\s]+?)(?:\.git)?(?:\/|$)/);
+  if (!m) throw new Error("not a github.com URL: " + url);
+  const repo = m[1] + "/" + m[2].replace(/\.git$/, "");
+  fs4.mkdirSync(outDir, { recursive: true });
+  const dir = path4.join(outDir, m[2].replace(/\.git$/, ""));
+  execSync("git clone --depth 1 https://github.com/" + repo + '.git "' + dir + '"', { stdio: "pipe", timeout: 12e4 });
+  const head = (name, n = 40) => {
+    const f = path4.join(dir, name);
+    try {
+      return fs4.readFileSync(f, "utf8").slice(0, 1800);
+    } catch {
+      return "";
+    }
+  };
+  const readme = head("README.md") || head("README_EN.md") || head("README.adoc");
+  const claudeMd = head("CLAUDE.md") || head("AGENTS.md");
+  const tree = [];
+  const walk = (d, depth) => {
+    if (depth > 2 || tree.length >= maxTree) return;
+    for (const f of fs4.readdirSync(d, { withFileTypes: true })) {
+      if (f.name.startsWith(".") || f.name === "node_modules") continue;
+      const rel = path4.relative(dir, path4.join(d, f.name));
+      tree.push((depth ? "  ".repeat(depth) : "") + rel + (f.isDirectory() ? "/" : ""));
+      if (f.isDirectory()) walk(path4.join(d, f.name), depth + 1);
+    }
+  };
+  walk(dir, 0);
+  let files = 0;
+  const count = (d) => {
+    for (const f of fs4.readdirSync(d, { withFileTypes: true })) {
+      if (f.name.startsWith(".")) continue;
+      if (f.isDirectory()) count(path4.join(d, f.name));
+      else files++;
+    }
+  };
+  count(dir);
+  const note = [
+    "# Ref study: " + repo,
+    "",
+    "source: https://github.com/" + repo + "  |  cloned: " + (/* @__PURE__ */ new Date()).toISOString().slice(0, 10),
+    "files: " + files,
+    "",
+    "## README (excerpt)",
+    "",
+    readme,
+    "",
+    claudeMd ? "## CLAUDE.md / AGENTS.md (excerpt - often reveals the real contract)" : "",
+    "",
+    claudeMd,
+    "",
+    "## Structure (top 2 levels)",
+    "",
+    "```",
+    ...tree,
+    "```",
+    "",
+    "## Absorption notes (fill in)",
+    "",
+    "| aspect | verdict |",
+    "|---|---|",
+    "| what it is |  |",
+    "| absorb-worthy mechanisms |  |",
+    "| code to port |  |",
+    "| conflicts with our design |  |",
+    "| license |  |",
+    ""
+  ];
+  const noteFile = path4.join(dir, "REF.md");
+  fs4.writeFileSync(noteFile, note.join("\n"), "utf8");
+  return { repo, dir, readme, claudeMd, tree, files, noteFile };
+}
 export {
   addClaims,
   addDoc,
@@ -815,6 +892,7 @@ export {
   betaConfidence,
   citeClaim,
   claimsReport,
+  cloneAndStudy,
   expandSearch,
   extractClaims,
   formatPapers,

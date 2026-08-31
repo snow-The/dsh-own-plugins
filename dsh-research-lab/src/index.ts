@@ -23,6 +23,7 @@ import { addDoc, expandSearch, hybridSearch, ingestDocDir, mineKeywords, openDb,
 import { rewriteReport } from './rewrite.js';
 import { addClaims, betaConfidence, citeClaim, claimsReport, extractClaims, loadClaims } from './extract.js';
 import { suggestExternal, suggestZh } from './suggest.js';
+import { cloneAndStudy } from './ref.js';
 
 const textOut = { schema: { type: 'string' }, render: (_a: unknown, v: unknown) => [{ type: 'text', text: String(v) }] };
 const today = () => new Date().toISOString().slice(0, 10);
@@ -362,6 +363,28 @@ export async function apply(ctx: any) {
         default:
           throw new Error('action must be extract|cite|list');
       }
+    },
+  }));
+
+  // ---------------- rlab_ref: shallow-clone + auto study note ----------------
+  ctx.tools.register(defineTool({
+    name: 'rlab_ref',
+    description: 'Shallow-clone a public GitHub repo and auto-generate a study note (REF.md): README/CLAUDE.md excerpts, 2-level tree, file count, absorption-decision table to fill in. The zero-config research habit: new reference project -> study note in seconds. Also indexable via rlab_related ingest.',
+    parameters: {
+      project: { type: 'string', required: true, description: 'absolute path to the research project root (refs go to <project>/.rlab/refs/)' },
+      url: { type: 'string', required: true, description: 'github.com URL, e.g. https://github.com/skyllwt/AutoSci' },
+    },
+    output: textOut,
+    timeoutMs: 150000,
+    async execute(args: any) {
+      const project = String(args?.project ?? '').trim();
+      const url = String(args?.url ?? '').trim();
+      if (!project || !url) throw new Error('project and url required');
+      const res = cloneAndStudy(url, path.join(rlabDir(project), 'refs'));
+      return 'Cloned ' + res.repo + ' -> ' + res.dir + ' (' + res.files + ' files)' + String.fromCharCode(10)
+        + 'Study note: ' + res.noteFile + String.fromCharCode(10) + String.fromCharCode(10)
+        + '## README excerpt' + String.fromCharCode(10) + res.readme.slice(0, 400) + String.fromCharCode(10) + String.fromCharCode(10)
+        + '## Structure' + String.fromCharCode(10) + res.tree.slice(0, 15).join(String.fromCharCode(10));
     },
   }));
 

@@ -1,7 +1,7 @@
 // src/index.ts
 import { defineTool } from "@deepseek-ai/dsh-tools";
-import * as fs4 from "node:fs";
-import * as path4 from "node:path";
+import * as fs5 from "node:fs";
+import * as path5 from "node:path";
 
 // src/arxiv.ts
 var esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -809,6 +809,83 @@ async function suggestZh(query, max = 5) {
   return out;
 }
 
+// src/ref.ts
+import { execSync } from "node:child_process";
+import * as fs4 from "node:fs";
+import * as path4 from "node:path";
+function cloneAndStudy(url, outDir, maxTree = 30) {
+  const m = url.match(/github\.com\/([^\/]+)\/([^\/\s]+?)(?:\.git)?(?:\/|$)/);
+  if (!m) throw new Error("not a github.com URL: " + url);
+  const repo = m[1] + "/" + m[2].replace(/\.git$/, "");
+  fs4.mkdirSync(outDir, { recursive: true });
+  const dir = path4.join(outDir, m[2].replace(/\.git$/, ""));
+  execSync("git clone --depth 1 https://github.com/" + repo + '.git "' + dir + '"', { stdio: "pipe", timeout: 12e4 });
+  const head = (name2, n = 40) => {
+    const f = path4.join(dir, name2);
+    try {
+      return fs4.readFileSync(f, "utf8").slice(0, 1800);
+    } catch {
+      return "";
+    }
+  };
+  const readme = head("README.md") || head("README_EN.md") || head("README.adoc");
+  const claudeMd = head("CLAUDE.md") || head("AGENTS.md");
+  const tree = [];
+  const walk = (d, depth) => {
+    if (depth > 2 || tree.length >= maxTree) return;
+    for (const f of fs4.readdirSync(d, { withFileTypes: true })) {
+      if (f.name.startsWith(".") || f.name === "node_modules") continue;
+      const rel = path4.relative(dir, path4.join(d, f.name));
+      tree.push((depth ? "  ".repeat(depth) : "") + rel + (f.isDirectory() ? "/" : ""));
+      if (f.isDirectory()) walk(path4.join(d, f.name), depth + 1);
+    }
+  };
+  walk(dir, 0);
+  let files = 0;
+  const count = (d) => {
+    for (const f of fs4.readdirSync(d, { withFileTypes: true })) {
+      if (f.name.startsWith(".")) continue;
+      if (f.isDirectory()) count(path4.join(d, f.name));
+      else files++;
+    }
+  };
+  count(dir);
+  const note = [
+    "# Ref study: " + repo,
+    "",
+    "source: https://github.com/" + repo + "  |  cloned: " + (/* @__PURE__ */ new Date()).toISOString().slice(0, 10),
+    "files: " + files,
+    "",
+    "## README (excerpt)",
+    "",
+    readme,
+    "",
+    claudeMd ? "## CLAUDE.md / AGENTS.md (excerpt - often reveals the real contract)" : "",
+    "",
+    claudeMd,
+    "",
+    "## Structure (top 2 levels)",
+    "",
+    "```",
+    ...tree,
+    "```",
+    "",
+    "## Absorption notes (fill in)",
+    "",
+    "| aspect | verdict |",
+    "|---|---|",
+    "| what it is |  |",
+    "| absorb-worthy mechanisms |  |",
+    "| code to port |  |",
+    "| conflicts with our design |  |",
+    "| license |  |",
+    ""
+  ];
+  const noteFile = path4.join(dir, "REF.md");
+  fs4.writeFileSync(noteFile, note.join("\n"), "utf8");
+  return { repo, dir, readme, claudeMd, tree, files, noteFile };
+}
+
 // src/index.ts
 var textOut = { schema: { type: "string" }, render: (_a, v) => [{ type: "text", text: String(v) }] };
 var today = () => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
@@ -985,8 +1062,8 @@ async function apply(ctx) {
       const text = lines.join("\n");
       const outFile = args?.outputFile ? String(args.outputFile) : "";
       if (outFile) {
-        fs4.mkdirSync(path4.dirname(path4.resolve(outFile)), { recursive: true });
-        fs4.writeFileSync(outFile, text + "\n", "utf8");
+        fs5.mkdirSync(path5.dirname(path5.resolve(outFile)), { recursive: true });
+        fs5.writeFileSync(outFile, text + "\n", "utf8");
         return "Review written to " + outFile + "\n\n" + text;
       }
       return text;
@@ -1025,12 +1102,12 @@ async function apply(ctx) {
       }
       all.sort((a, b) => (b.published || "").localeCompare(a.published || ""));
       const date = today();
-      const dir = path4.join(rlabDir(project), "digests");
-      fs4.mkdirSync(dir, { recursive: true });
-      const file = path4.join(dir, date + ".md");
+      const dir = path5.join(rlabDir(project), "digests");
+      fs5.mkdirSync(dir, { recursive: true });
+      const file = path5.join(dir, date + ".md");
       const lines = ["# arXiv digest \u2014 " + date, "", "queries: " + queries.join(" | "), "papers: " + all.length, ""];
       lines.push(formatPapers(all, withSummary));
-      fs4.writeFileSync(file, lines.join("\n") + "\n", "utf8");
+      fs5.writeFileSync(file, lines.join("\n") + "\n", "utf8");
       return "Digest written to " + file + " (" + all.length + " papers)\n\n" + formatPapers(all.slice(0, 10), withSummary);
     }
   }));
@@ -1157,6 +1234,23 @@ async function apply(ctx) {
     }
   }));
   ctx.tools.register(defineTool({
+    name: "rlab_ref",
+    description: "Shallow-clone a public GitHub repo and auto-generate a study note (REF.md): README/CLAUDE.md excerpts, 2-level tree, file count, absorption-decision table to fill in. The zero-config research habit: new reference project -> study note in seconds. Also indexable via rlab_related ingest.",
+    parameters: {
+      project: { type: "string", required: true, description: "absolute path to the research project root (refs go to <project>/.rlab/refs/)" },
+      url: { type: "string", required: true, description: "github.com URL, e.g. https://github.com/skyllwt/AutoSci" }
+    },
+    output: textOut,
+    timeoutMs: 15e4,
+    async execute(args) {
+      const project = String(args?.project ?? "").trim();
+      const url = String(args?.url ?? "").trim();
+      if (!project || !url) throw new Error("project and url required");
+      const res = cloneAndStudy(url, path5.join(rlabDir(project), "refs"));
+      return "Cloned " + res.repo + " -> " + res.dir + " (" + res.files + " files)" + String.fromCharCode(10) + "Study note: " + res.noteFile + String.fromCharCode(10) + String.fromCharCode(10) + "## README excerpt" + String.fromCharCode(10) + res.readme.slice(0, 400) + String.fromCharCode(10) + String.fromCharCode(10) + "## Structure" + String.fromCharCode(10) + res.tree.slice(0, 15).join(String.fromCharCode(10));
+    }
+  }));
+  ctx.tools.register(defineTool({
     name: "rlab_related",
     description: "Self-building keyword retrieval over a project document store (NLP + SQLite FTS5, zero deps). NO preset lexicon: terms are mined from the corpus via TF-IDF (English words + Chinese n-grams) and the lexicon grows with every added doc. Actions: add (index a doc), search (FTS5), expand (iterative relevance feedback: search \u2192 mine new terms from top hits \u2192 merge into query \u2192 repeat, rounds=1..4), keywords (show the auto-built lexicon), list (all docs). DB at <project>/.rlab/related.db.",
     parameters: {
@@ -1252,7 +1346,7 @@ async function apply(ctx) {
       const project = String(args?.project ?? "").trim();
       if (!project) throw new Error("project required");
       const dir = rlabDir(project);
-      if (!fs4.existsSync(dir)) return "No .rlab/ directory at " + project + " yet. Start with rlab_wiki or rlab_bench.";
+      if (!fs5.existsSync(dir)) return "No .rlab/ directory at " + project + " yet. Start with rlab_wiki or rlab_bench.";
       const pages = listWiki(project);
       const count = (k) => pages.filter((p) => p.kind === k).length;
       const benchRows = readBench(project);
