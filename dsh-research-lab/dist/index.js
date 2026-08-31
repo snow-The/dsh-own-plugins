@@ -1456,7 +1456,8 @@ async function apply(ctx) {
       project: { type: "string", required: true, description: "absolute path to the research project root" },
       queries: { type: "array", required: true, description: 'search terms, e.g. ["embedding distillation", "efficient retrieval"]' },
       maxPerQuery: { type: "number", description: "papers per query (default 10, max 30)" },
-      withSummary: { type: "boolean", description: "include 500-char abstracts (default false)" }
+      withSummary: { type: "boolean", description: "include 500-char abstracts (default false)" },
+      wiki: { type: "boolean", description: "also write every paper as a literature wiki page and index into related.db (default false)" }
     },
     output: textOut,
     timeoutMs: 12e4,
@@ -1488,7 +1489,23 @@ async function apply(ctx) {
       const lines = ["# arXiv digest \u2014 " + date, "", "queries: " + queries.join(" | "), "papers: " + all.length, ""];
       lines.push(formatPapers(all, withSummary));
       fs7.writeFileSync(file, lines.join("\n") + "\n", "utf8");
-      return "Digest written to " + file + " (" + all.length + " papers)\n\n" + formatPapers(all.slice(0, 10), withSummary);
+      let wikiCount = 0;
+      if (args?.wiki === true) {
+        const wseen = /* @__PURE__ */ new Set();
+        for (const p of all) {
+          if (!p.id || p.id === "ERR" || wseen.has(p.id)) continue;
+          wseen.add(p.id);
+          try {
+            const slug = p.id.replace(/[^\w-]+/g, "").slice(0, 60);
+            const content = "## Title\n" + p.title + "\n\n## Authors\n" + (p.authors || []).join(", ").slice(0, 300) + "\n\n## Abstract\n" + (p.summary || "").slice(0, 1200) + "\n\n## Links\n- " + (p.absUrl || "") + "\n- " + (p.pdfUrl || "");
+            writeWikiPage(project, { kind: "literature", id: slug, title: String(p.title).slice(0, 120), updated: today(), content, tags: ["arxiv", ...(p.categories || []).slice(0, 3)] });
+            addDoc(project, "wiki/literature/" + slug, String(p.title) + "\n\n" + (p.summary || ""), "arxiv:" + p.id);
+            wikiCount++;
+          } catch {
+          }
+        }
+      }
+      return "Digest written to " + file + " (" + all.length + " papers" + (wikiCount ? ", " + wikiCount + " wiki pages written" : "") + ")\n\n" + formatPapers(all.slice(0, 10), withSummary);
     }
   }));
   ctx.tools.register(defineTool({
@@ -1766,6 +1783,54 @@ async function apply(ctx) {
       }
       lines.push("quota note: 20000 free pages/day per model");
       return lines.join("\n");
+    }
+  }));
+  ctx.tools.register(defineTool({
+    name: "rlab_absorb",
+    description: "Auto-absorb dsh-lib-analyzer reports into the research wiki + related.db: scans batch/out and .dsh-lib-analyzer/pages for .md reports and writes each as a wiki page (kind=experiment by default) and indexes it. The zero-friction loop: libreport sinks a knowledge page -> run this -> it becomes wiki literature/experiment pages searchable via rlab_related.",
+    parameters: {
+      project: { type: "string", required: true, description: "absolute path to the research project root" },
+      dir: { type: "string", description: "directory to scan (default: auto-detect batch/out + .dsh-lib-analyzer/pages)" },
+      kind: { type: "string", description: "wiki kind: experiment (default) | literature | decision" },
+      max: { type: "number", description: "max reports to absorb (default 50)" }
+    },
+    output: textOut,
+    timeoutMs: 6e4,
+    async execute(args) {
+      const project = String(args?.project ?? "").trim();
+      if (!project) throw new Error("project required");
+      const kind = String(args?.kind ?? "experiment").trim();
+      if (!["experiment", "literature", "decision"].includes(kind)) throw new Error("kind must be experiment|literature|decision");
+      const max = Number(args?.max) || 50;
+      const dirs = String(args?.dir ?? "").trim() ? [String(args?.dir).trim()] : [path7.join(project, "batch", "out"), path7.join(project, ".dsh-lib-analyzer", "pages")];
+      let written = 0, indexed = 0, skipped = 0;
+      const files = [];
+      for (const d of dirs) {
+        if (!fs7.existsSync(d)) continue;
+        const walk = (p) => {
+          for (const f of fs7.readdirSync(p, { withFileTypes: true })) {
+            if (f.name.startsWith(".")) continue;
+            const full = path7.join(p, f.name);
+            if (f.isDirectory()) walk(full);
+            else if (f.name.endsWith(".md") && files.length < max) files.push(full);
+          }
+        };
+        walk(d);
+      }
+      for (const f of files) {
+        try {
+          const text = fs7.readFileSync(f, "utf8").slice(0, 2e4);
+          const rel = path7.relative(project, f).replace(/\\/g, "/");
+          const slug = path7.basename(f, ".md").replace(/[^\w\u4e00-\u9fff-]+/g, "-").slice(0, 60) || "report";
+          writeWikiPage(project, { kind, id: slug, title: slug + " (absorbed)", updated: today(), content: text.slice(0, 5e3) + "\n\n---\nSource: " + rel, tags: ["absorb", path7.basename(path7.dirname(f))] });
+          addDoc(project, rel, text, "absorb");
+          written++;
+          indexed++;
+        } catch {
+          skipped++;
+        }
+      }
+      return "Absorbed " + written + " reports (" + files.length + " found, " + skipped + " skipped) from: " + (dirs.filter((d) => fs7.existsSync(d)).join(", ") || "(no dirs)") + "\nwiki pages: " + written + " | related.db docs: " + indexed;
     }
   }));
   ctx.tools.register(defineTool({
