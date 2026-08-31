@@ -1,7 +1,7 @@
 // src/index.ts
 import { defineTool } from "@deepseek-ai/dsh-tools";
-import * as fs5 from "node:fs";
-import * as path5 from "node:path";
+import * as fs6 from "node:fs";
+import * as path6 from "node:path";
 
 // src/arxiv.ts
 var esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -886,12 +886,110 @@ function cloneAndStudy(url, outDir, maxTree = 30) {
   return { repo, dir, readme, claudeMd, tree, files, noteFile };
 }
 
+// src/validate.ts
+import * as fs5 from "node:fs";
+import * as path5 from "node:path";
+var KINDS = ["experiment", "literature", "decision", "todo"];
+var REQUIRED_FIELDS = ["id", "kind", "title", "updated"];
+function parseFrontmatter(text) {
+  if (!text.startsWith("---")) return { meta: {}, ok: false, err: "missing YAML frontmatter (must start with ---)" };
+  const end = text.indexOf("\n---", 4);
+  if (end < 0) return { meta: {}, ok: false, err: "unterminated frontmatter (missing closing ---)" };
+  const block = text.slice(3, end).trim();
+  const meta = {};
+  for (const line of block.split("\n")) {
+    const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.*)$/);
+    if (m) meta[m[1].trim()] = m[2].trim().replace(/^["']|["']$/g, "");
+  }
+  return { meta, ok: true };
+}
+function validateWiki(project) {
+  const root = path5.join(rlabDir(project), "wiki");
+  const issues = [];
+  const graph = { edges: [], dangling: [], isolated: [] };
+  const pages = listWiki(project);
+  const idSet = new Set(pages.map((p) => p.id));
+  for (const kind of KINDS) {
+    const dir = path5.join(root, kind);
+    if (!fs5.existsSync(dir)) continue;
+    for (const f of fs5.readdirSync(dir)) {
+      if (!f.endsWith(".md") || f === "index.md") continue;
+      const full = path5.join(dir, f);
+      const text = fs5.readFileSync(full, "utf8");
+      const id = f.replace(/\.md$/, "");
+      const fm = parseFrontmatter(text);
+      if (!fm.ok) {
+        issues.push({ page: kind + "/" + id, severity: "error", message: fm.err });
+        continue;
+      }
+      for (const field of REQUIRED_FIELDS) {
+        if (!fm.meta[field]) issues.push({ page: kind + "/" + id, severity: "error", message: "frontmatter missing required field: " + field });
+      }
+      if (fm.meta.kind && !KINDS.includes(fm.meta.kind)) {
+        issues.push({ page: kind + "/" + id, severity: "error", message: "invalid kind: " + fm.meta.kind });
+      }
+      if (fm.meta.id && fm.meta.id !== id) {
+        issues.push({ page: kind + "/" + id, severity: "error", message: 'frontmatter id "' + fm.meta.id + '" != filename "' + id + '"' });
+      }
+      const links = [...text.matchAll(/\[\[([A-Za-z0-9_.-]+)(?:\|[^\]]+)?\]\]/g)].map((m) => m[1]);
+      for (const to of links) {
+        if (idSet.has(to)) graph.edges.push({ from: id, to });
+        else graph.dangling.push(id + " -> " + to);
+      }
+    }
+  }
+  const backlinks = /* @__PURE__ */ new Map();
+  for (const e of graph.edges) backlinks.set(e.to, (backlinks.get(e.to) || 0) + 1);
+  for (const p of pages) {
+    const out = graph.edges.filter((e) => e.from === p.id).length;
+    if (out === 0 && (backlinks.get(p.id) || 0) === 0) graph.isolated.push(p.id);
+  }
+  const lines = ["# Wiki validation \u2014 " + project, ""];
+  lines.push("pages: " + pages.length + "   links: " + graph.edges.length + "   issues: " + issues.length);
+  lines.push("");
+  if (graph.dangling.length) {
+    lines.push("## \u26A0\uFE0F dangling links (" + graph.dangling.length + ")");
+    for (const d of graph.dangling.slice(0, 20)) lines.push("- " + d);
+    lines.push("");
+  }
+  if (graph.isolated.length) {
+    lines.push("## \u{1F3DD}\uFE0F isolated pages (no links in or out)");
+    for (const i of graph.isolated.slice(0, 20)) lines.push("- " + i);
+    lines.push("");
+  }
+  if (issues.length) {
+    lines.push("## \u274C issues (" + issues.length + ")");
+    for (const i of issues) lines.push("- [" + i.severity + "] " + i.page + ": " + i.message);
+  } else {
+    lines.push("## \u2705 all pages pass the \u03A9megaWiki contract");
+  }
+  lines.push("");
+  lines.push("### top backlinked");
+  const top = [...backlinks.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  for (const [id, n] of top) lines.push("- " + id + "  (" + n + " backlinks)");
+  return lines.join("\n");
+}
+
 // src/index.ts
 var textOut = { schema: { type: "string" }, render: (_a, v) => [{ type: "text", text: String(v) }] };
 var today = () => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
 var name = "dsh-research-lab";
 var inject = ["tools"];
 async function apply(ctx) {
+  ctx.tools.register(defineTool({
+    name: "rlab_validate",
+    description: "Validate a research-wiki against the \u03A9megaWiki contract: frontmatter schema (id/kind/title/updated), kind legality, id-filename consistency, [[wikilink]] bidirectional graph, dangling and isolated pages. Run after rlab_wiki batches or before publishing.".replace(/ΩmegaWiki contract/, "\u03A9megaWiki contract"),
+    parameters: {
+      project: { type: "string", required: true, description: "absolute path to the research project root" }
+    },
+    output: textOut,
+    timeoutMs: 15e3,
+    async execute(args) {
+      const project = String(args?.project ?? "").trim();
+      if (!project) throw new Error("project required");
+      return validateWiki(project);
+    }
+  }));
   ctx.tools.register(defineTool({
     name: "rlab_wiki",
     description: "Write a research-wiki page under <project>/.rlab/wiki/<kind>/ and rebuild the index (AutoSci-style durable lab notes). Kinds: experiment (what you ran), literature (paper notes), decision (why you chose X \u2014 ADRs), todo (open items). Pages are plain markdown; read them with the read tool. Returns the written path.",
@@ -901,7 +999,7 @@ async function apply(ctx) {
       id: { type: "string", required: true, description: "short kebab id, e.g. m10-contrastive or arxiv-2602.04770" },
       title: { type: "string", required: true, description: "page title" },
       content: { type: "string", required: true, description: "markdown body" },
-      tags: { type: "array", required: false, description: "optional tags" }
+      tags: { type: "array", description: "optional tags" }
     },
     output: textOut,
     timeoutMs: 15e3,
@@ -932,11 +1030,11 @@ async function apply(ctx) {
       task: { type: "string", required: true, description: "task name, e.g. STS12 or MTEB-Multilingual-v2" },
       score: { type: "number", required: true, description: "the metric value" },
       metric: { type: "string", required: true, description: "cos_sim.spearman | ndcg_at_10 | accuracy | ..." },
-      split: { type: "string", required: false, description: "test | dev | validation (default test)" },
-      hf_subset: { type: "string", required: false, description: "huggingface subset when task has one" },
-      prompt_type: { type: "string", required: false, description: "e.g. query|passage, or none" },
-      seed: { type: "number", required: false, description: "seed if stochastic" },
-      note: { type: "string", required: false, description: 'free note, e.g. "batch 128, fp32, compile off"' }
+      split: { type: "string", description: "test | dev | validation (default test)" },
+      hf_subset: { type: "string", description: "huggingface subset when task has one" },
+      prompt_type: { type: "string", description: "e.g. query|passage, or none" },
+      seed: { type: "number", description: "seed if stochastic" },
+      note: { type: "string", description: 'free note, e.g. "batch 128, fp32, compile off"' }
     },
     output: textOut,
     timeoutMs: 1e4,
@@ -969,7 +1067,7 @@ async function apply(ctx) {
       project: { type: "string", required: true, description: "absolute path to the research project root" },
       id: { type: "string", required: true, description: "short kebab id, e.g. v4-permcons" },
       hypothesis: { type: "string", required: true, description: "what you believed and why (with references)" },
-      prediction: { type: "string", required: false, description: 'falsifiable prediction + decision rule, e.g. "STS12 >= 0.5 \u2192 mechanism works"' },
+      prediction: { type: "string", description: 'falsifiable prediction + decision rule, e.g. "STS12 >= 0.5 \u2192 mechanism works"' },
       evidence: { type: "string", required: true, description: "what actually happened: numbers, logs, artifacts" },
       verdict: { type: "string", required: true, description: "confirmed | refuted | inconclusive" },
       conclusion: { type: "string", required: true, description: "what this changes for the project" }
@@ -1012,8 +1110,8 @@ async function apply(ctx) {
     description: "Pull an arXiv paper by id (or abs URL) and produce a structured adversarial review checklist (ChatPaper summary + ASI-Bench rigor): contribution, method, evidence strength, baseline fairness, flaws, reproducibility. The checklist is the same one you should apply to your OWN paper before submission.",
     parameters: {
       arxivId: { type: "string", required: true, description: "e.g. 2602.04770 or full https://arxiv.org/abs/2602.04770 URL" },
-      focus: { type: "string", required: false, description: 'what to look for, e.g. "is the eval protocol sound?"' },
-      outputFile: { type: "string", required: false, description: "optional absolute path to write the review markdown" }
+      focus: { type: "string", description: 'what to look for, e.g. "is the eval protocol sound?"' },
+      outputFile: { type: "string", description: "optional absolute path to write the review markdown" }
     },
     output: textOut,
     timeoutMs: 6e4,
@@ -1062,8 +1160,8 @@ async function apply(ctx) {
       const text = lines.join("\n");
       const outFile = args?.outputFile ? String(args.outputFile) : "";
       if (outFile) {
-        fs5.mkdirSync(path5.dirname(path5.resolve(outFile)), { recursive: true });
-        fs5.writeFileSync(outFile, text + "\n", "utf8");
+        fs6.mkdirSync(path6.dirname(path6.resolve(outFile)), { recursive: true });
+        fs6.writeFileSync(outFile, text + "\n", "utf8");
         return "Review written to " + outFile + "\n\n" + text;
       }
       return text;
@@ -1075,8 +1173,8 @@ async function apply(ctx) {
     parameters: {
       project: { type: "string", required: true, description: "absolute path to the research project root" },
       queries: { type: "array", required: true, description: 'search terms, e.g. ["embedding distillation", "efficient retrieval"]' },
-      maxPerQuery: { type: "number", required: false, description: "papers per query (default 10, max 30)" },
-      withSummary: { type: "boolean", required: false, description: "include 500-char abstracts (default false)" }
+      maxPerQuery: { type: "number", description: "papers per query (default 10, max 30)" },
+      withSummary: { type: "boolean", description: "include 500-char abstracts (default false)" }
     },
     output: textOut,
     timeoutMs: 12e4,
@@ -1102,12 +1200,12 @@ async function apply(ctx) {
       }
       all.sort((a, b) => (b.published || "").localeCompare(a.published || ""));
       const date = today();
-      const dir = path5.join(rlabDir(project), "digests");
-      fs5.mkdirSync(dir, { recursive: true });
-      const file = path5.join(dir, date + ".md");
+      const dir = path6.join(rlabDir(project), "digests");
+      fs6.mkdirSync(dir, { recursive: true });
+      const file = path6.join(dir, date + ".md");
       const lines = ["# arXiv digest \u2014 " + date, "", "queries: " + queries.join(" | "), "papers: " + all.length, ""];
       lines.push(formatPapers(all, withSummary));
-      fs5.writeFileSync(file, lines.join("\n") + "\n", "utf8");
+      fs6.writeFileSync(file, lines.join("\n") + "\n", "utf8");
       return "Digest written to " + file + " (" + all.length + " papers)\n\n" + formatPapers(all.slice(0, 10), withSummary);
     }
   }));
@@ -1192,10 +1290,10 @@ async function apply(ctx) {
     parameters: {
       project: { type: "string", required: true, description: "absolute path to the research project root" },
       action: { type: "string", required: true, description: "extract | cite | list" },
-      text: { type: "string", required: false, description: "paper text to extract from (action=extract)" },
-      docId: { type: "number", required: false, description: "indexed doc id to extract from (action=extract)" },
-      claimId: { type: "number", required: false, description: "claim id to cite (action=cite)" },
-      type: { type: "string", required: false, description: "filter list by claim type" }
+      text: { type: "string", description: "paper text to extract from (action=extract)" },
+      docId: { type: "number", description: "indexed doc id to extract from (action=extract)" },
+      claimId: { type: "number", description: "claim id to cite (action=cite)" },
+      type: { type: "string", description: "filter list by claim type" }
     },
     output: textOut,
     timeoutMs: 2e4,
@@ -1246,7 +1344,7 @@ async function apply(ctx) {
       const project = String(args?.project ?? "").trim();
       const url = String(args?.url ?? "").trim();
       if (!project || !url) throw new Error("project and url required");
-      const res = cloneAndStudy(url, path5.join(rlabDir(project), "refs"));
+      const res = cloneAndStudy(url, path6.join(rlabDir(project), "refs"));
       return "Cloned " + res.repo + " -> " + res.dir + " (" + res.files + " files)" + String.fromCharCode(10) + "Study note: " + res.noteFile + String.fromCharCode(10) + String.fromCharCode(10) + "## README excerpt" + String.fromCharCode(10) + res.readme.slice(0, 400) + String.fromCharCode(10) + String.fromCharCode(10) + "## Structure" + String.fromCharCode(10) + res.tree.slice(0, 15).join(String.fromCharCode(10));
     }
   }));
@@ -1256,14 +1354,14 @@ async function apply(ctx) {
     parameters: {
       project: { type: "string", required: true, description: "absolute path to the research project root" },
       action: { type: "string", required: true, description: "add | search | expand | keywords | list | ingest" },
-      title: { type: "string", required: false, description: "doc title (add)" },
-      body: { type: "string", required: false, description: "doc body/text (add)" },
-      source: { type: "string", required: false, description: "origin, e.g. arxiv:2602.04770 or file path (add)" },
-      query: { type: "string", required: false, description: "search query (search/expand), plain words, zh or en" },
-      k: { type: "number", required: false, description: "results per round (default 8, max 20)" },
-      rounds: { type: "number", required: false, description: "expansion rounds (default 2, max 4)" },
-      external: { type: "boolean", required: false, description: "also mine suggestion terms from Wikipedia opensearch (en+zh, network; degrades silently offline)" },
-      topN: { type: "number", required: false, description: "lexicon size for keywords (default 30)" }
+      title: { type: "string", description: "doc title (add)" },
+      body: { type: "string", description: "doc body/text (add)" },
+      source: { type: "string", description: "origin, e.g. arxiv:2602.04770 or file path (add)" },
+      query: { type: "string", description: "search query (search/expand), plain words, zh or en" },
+      k: { type: "number", description: "results per round (default 8, max 20)" },
+      rounds: { type: "number", description: "expansion rounds (default 2, max 4)" },
+      external: { type: "boolean", description: "also mine suggestion terms from Wikipedia opensearch (en+zh, network; degrades silently offline)" },
+      topN: { type: "number", description: "lexicon size for keywords (default 30)" }
     },
     output: textOut,
     timeoutMs: 6e4,
@@ -1346,7 +1444,7 @@ async function apply(ctx) {
       const project = String(args?.project ?? "").trim();
       if (!project) throw new Error("project required");
       const dir = rlabDir(project);
-      if (!fs5.existsSync(dir)) return "No .rlab/ directory at " + project + " yet. Start with rlab_wiki or rlab_bench.";
+      if (!fs6.existsSync(dir)) return "No .rlab/ directory at " + project + " yet. Start with rlab_wiki or rlab_bench.";
       const pages = listWiki(project);
       const count = (k) => pages.filter((p) => p.kind === k).length;
       const benchRows = readBench(project);

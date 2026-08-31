@@ -31,7 +31,26 @@ const today = () => new Date().toISOString().slice(0, 10);
 export const name = 'dsh-research-lab';
 export const inject = ['tools'];
 
+import { validateWiki } from './validate.js';
+
 export async function apply(ctx: any) {
+  // ---------------- rlab_validate ----------------
+  ctx.tools.register(defineTool({
+    name: 'rlab_validate',
+    description: 'Validate a research-wiki against the ΩmegaWiki contract: frontmatter schema (id/kind/title/updated), kind legality, id-filename consistency, [[wikilink]] bidirectional graph, dangling and isolated pages. Run after rlab_wiki batches or before publishing.'
+    .replace(/ΩmegaWiki contract/, 'ΩmegaWiki contract'),
+    parameters: {
+      project: { type: 'string', required: true, description: 'absolute path to the research project root' },
+    },
+    output: textOut,
+    timeoutMs: 15000,
+    async execute(args: any) {
+      const project = String(args?.project ?? '').trim();
+      if (!project) throw new Error('project required');
+      return validateWiki(project);
+    },
+  }));
+
   // ---------------- rlab_wiki ----------------
   ctx.tools.register(defineTool({
     name: 'rlab_wiki',
