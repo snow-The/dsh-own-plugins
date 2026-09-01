@@ -1,3 +1,4 @@
 - 2026-08-31T17:00:16.634Z  decision:arch-frontmatter-contract  OmegaWiki frontmatter contract + zero-dep architecture
 - 2026-08-31T17:21:27.360Z  decision:arch-frontmatter-contract  Architecture Decision: wiki frontmatter contract
 - 2026-08-31T17:21:48.933Z  decision:arch-frontmatter-contract  Architecture Decision: wiki frontmatter contract
+- 2026-09-01T14:21:17.742Z  decision:hf-gold-sources  Decision: HF 黄金资料来源索引 (插件常识库)
