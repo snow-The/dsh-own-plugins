@@ -1,6 +1,13 @@
+var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
+  get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
+}) : x)(function(x) {
+  if (typeof require !== "undefined") return require.apply(this, arguments);
+  throw Error('Dynamic require of "' + x + '" is not supported');
+});
+
 // src/index.ts
 import { fileURLToPath } from "node:url";
-import { readdirSync } from "node:fs";
+import { readdirSync as readdirSync2 } from "node:fs";
 import { apply as applyFilesystemProvider } from "@deepseek-ai/dsh-skill-filesystem";
 
 // node_modules/.pnpm/hono@4.13.3/node_modules/hono/dist/compose.js
@@ -2080,16 +2087,220 @@ var Hono2 = class extends Hono {
   }
 };
 
+// src/wiki.ts
+import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, appendFileSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
+var NL = String.fromCharCode(10);
+function wikiRoot() {
+  const base = process.env.DSH_HOME ?? join(homedir(), ".dsh");
+  return join(base, "skill-wiki");
+}
+function ensureLayers() {
+  for (const d of ["raw", "wiki/patterns", "skills", "skills-active"]) mkdirSync(join(wikiRoot(), d), { recursive: true });
+  const logs = join(wikiRoot(), "wiki", "logs.md");
+  if (!existsSync(logs)) writeFileSync(logs, "# Skill Evolution Log" + NL + NL + "<!-- Wiki Maintainer appends one entry per evolution round -->" + NL, "utf8");
+  const impact = join(wikiRoot(), "wiki", "skill-impact.md");
+  if (!existsSync(impact)) writeFileSync(impact, "# Skill Impact Tracker" + NL + NL + "<!-- updated programmatically after gating -->" + NL, "utf8");
+}
+function ts() {
+  return (/* @__PURE__ */ new Date()).toISOString();
+}
+function slug(s) {
+  return String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "untitled";
+}
+function ingestExperience(title, content, meta = {}) {
+  ensureLayers();
+  const file = join(wikiRoot(), "raw", ts().replace(/[:.]/g, "-") + "-" + slug(title) + ".md");
+  const body = "---" + NL + "title: " + title + NL + "time: " + ts() + NL + "meta: " + JSON.stringify(meta) + NL + "---" + NL + NL + content;
+  writeFileSync(file, body, "utf8");
+  return file;
+}
+function consolidatePattern(name2, title, diagnosis, workaround) {
+  ensureLayers();
+  const file = join(wikiRoot(), "wiki", "patterns", slug(name2) + ".md");
+  const body = "---" + NL + "name: " + slug(name2) + NL + "title: " + title + NL + "consolidated: " + ts() + NL + "---" + NL + NL + "## Diagnosis" + NL + NL + diagnosis + NL + NL + "## Workaround" + NL + NL + workaround;
+  writeFileSync(file, body, "utf8");
+  return file;
+}
+function logEvolution(round, action, detail) {
+  ensureLayers();
+  appendFileSync(join(wikiRoot(), "wiki", "logs.md"), NL + "- **" + ts() + "** [" + round + "] " + action + ": " + detail + NL, "utf8");
+}
+function proposeSkill(name2, description, body, fromPatterns = []) {
+  ensureLayers();
+  const dir = join(wikiRoot(), "skills", slug(name2));
+  mkdirSync(dir, { recursive: true });
+  const sk = "---" + NL + "name: " + slug(name2) + NL + "description: " + description + NL + "source: wiki-proposed" + NL + "patterns: " + JSON.stringify(fromPatterns) + NL + "proposed: " + ts() + NL + "---" + NL + NL + body;
+  writeFileSync(join(dir, "SKILL.md"), sk, "utf8");
+  return join(dir, "SKILL.md");
+}
+function gateSkill(name2, accept, score) {
+  ensureLayers();
+  const dir = join(wikiRoot(), "skills", slug(name2));
+  const active = join(wikiRoot(), "skills-active", slug(name2));
+  if (!existsSync(dir)) return "skill not found: " + name2;
+  if (accept) {
+    mkdirSync(active, { recursive: true });
+    writeFileSync(join(active, "SKILL.md"), readFileSync(join(dir, "SKILL.md"), "utf8"), "utf8");
+    appendFileSync(join(wikiRoot(), "wiki", "skill-impact.md"), NL + "- **" + ts() + "** ACCEPT " + name2 + (score != null ? " score=" + score : "") + NL, "utf8");
+    logEvolution("gate", "accept", name2 + (score != null ? " (score " + score + ")" : ""));
+    return "accepted: " + name2;
+  }
+  appendFileSync(join(wikiRoot(), "wiki", "skill-impact.md"), NL + "- **" + ts() + "** REJECT " + name2 + " \u2014 do not re-propose without new evidence" + NL, "utf8");
+  logEvolution("gate", "reject", name2);
+  return "rejected: " + name2;
+}
+function wikiStatus() {
+  ensureLayers();
+  const count = (d) => {
+    try {
+      return readdirSync(d).length;
+    } catch {
+      return 0;
+    }
+  };
+  const activeDir = join(wikiRoot(), "skills-active");
+  const logs = existsSync(join(wikiRoot(), "wiki", "logs.md")) ? readFileSync(join(wikiRoot(), "wiki", "logs.md"), "utf8").split(NL).filter((l) => l.trim().startsWith("- **")).slice(-10) : [];
+  return {
+    raw: count(join(wikiRoot(), "raw")),
+    patterns: count(join(wikiRoot(), "wiki", "patterns")),
+    skills: count(join(wikiRoot(), "skills")),
+    active: existsSync(activeDir) ? readdirSync(activeDir).length : 0,
+    logs
+  };
+}
+function ingestFromAcp(limit = 10) {
+  try {
+    const req = __require;
+    const { DatabaseSync } = req("node:sqlite");
+    const base = process.env.DSH_HOME ?? join(homedir(), ".dsh");
+    const dbPath = join(base, "graph", "graph.db");
+    if (!existsSync(dbPath)) return [];
+    const db = new DatabaseSync(dbPath, { readOnly: true });
+    try {
+      const rows = db.prepare("SELECT session_id, seq_start, summary, created_at FROM checkpoints ORDER BY created_at DESC LIMIT ?").all(limit);
+      const files = [];
+      for (const r of rows) {
+        files.push(ingestExperience("acp-cp-" + r.session_id + "-" + r.seq_start, r.summary, { source: "acp_graph", session: r.session_id, seq: r.seq_start }));
+      }
+      return files;
+    } finally {
+      db.close();
+    }
+  } catch {
+    return [];
+  }
+}
+
 // src/index.ts
 var skillsRoot = fileURLToPath(new URL("../skills/", import.meta.url));
 var name = "skill-pack";
-var inject = ["skills"];
+var inject = ["tools", "skills"];
 function apply(ctx) {
   applyFilesystemProvider(ctx, {
     providerName: "skill-pack",
     includeDefaultRoots: false,
     bundledSkillDir: skillsRoot,
     watch: false
+  });
+  const textOut = { schema: { type: "string" }, render: (_a, v) => [{ type: "text", text: String(v) }] };
+  const reg = (t) => {
+    try {
+      ctx.tools.register(t);
+    } catch (e) {
+      console.error("[skill-pack] " + t.name + " skipped: " + e);
+    }
+  };
+  reg({
+    name: "skillwiki_status",
+    description: "WikiSkill status: raw/ experience traces, wiki patterns, candidate skills, active skills, recent evolution log.",
+    parameters: {},
+    output: textOut,
+    execute: () => {
+      const s = wikiStatus();
+      return "Skill Wiki (~/.dsh/skill-wiki):\n  raw=" + s.raw + " patterns=" + s.patterns + " candidates=" + s.skills + " active=" + s.active + "\n\nrecent log:\n" + (s.logs.length ? s.logs.join("\n") : "(empty)");
+    }
+  });
+  reg({
+    name: "skillwiki_ingest",
+    description: "Ingest a development experience trace into raw/ (immutable). Use after a debugging/refactor session so the insight becomes skill-evolution material. Optional: from=acp pulls latest ACP compaction summaries as experience.",
+    parameters: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        content: { type: "string" },
+        from: { type: "string" },
+        limit: { type: "number" }
+      },
+      required: []
+    },
+    output: textOut,
+    execute: (args) => {
+      if (args?.from === "acp") {
+        const files = ingestFromAcp(Number(args?.limit) || 10);
+        return "ingested " + files.length + " ACP checkpoint(s) into raw/";
+      }
+      if (!args?.title || !args?.content) throw new Error("title and content required");
+      const f = ingestExperience(String(args.title), String(args.content));
+      logEvolution("ingest", "experience", String(args.title));
+      return "ingested experience \u2192 " + f;
+    }
+  });
+  reg({
+    name: "skillwiki_consolidate",
+    description: "Wiki Maintainer: consolidate an experience pattern into wiki/patterns/. Extracts a reusable failure-mode/strategy with actionable workaround.",
+    parameters: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        title: { type: "string" },
+        diagnosis: { type: "string" },
+        workaround: { type: "string" }
+      },
+      required: []
+    },
+    output: textOut,
+    execute: (args) => {
+      const f = consolidatePattern(String(args.name), String(args.title), String(args.diagnosis), String(args.workaround));
+      logEvolution("consolidate", "pattern", String(args.name));
+      return "consolidated pattern \u2192 " + f;
+    }
+  });
+  reg({
+    name: "skillwiki_propose",
+    description: "Skill Proposer: write a candidate SKILL.md (wiki-informed) into skills/. Generates an atomic skill creation/update proposal grounded in wiki patterns.",
+    parameters: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        description: { type: "string" },
+        body: { type: "string" },
+        patterns: { type: "array", items: { type: "string" } }
+      },
+      required: []
+    },
+    output: textOut,
+    execute: (args) => {
+      const f = proposeSkill(String(args.name), String(args.description), String(args.body), (args?.patterns ?? []).map(String));
+      logEvolution("propose", "skill", String(args.name));
+      return "proposed skill \u2192 " + f;
+    }
+  });
+  reg({
+    name: "skillwiki_gate",
+    description: "Gating: accept or reject a candidate skill. Accepted skills move to skills-active/ (mounted), rejected ones are logged so they are not re-proposed without new evidence.",
+    parameters: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        accept: { type: "boolean" },
+        score: { type: "number" }
+      },
+      required: []
+    },
+    output: textOut,
+    execute: (args) => gateSkill(String(args.name), args?.accept === true, args?.score != null ? Number(args.score) : void 0)
   });
   try {
     const http = ctx.http;
@@ -2101,7 +2312,7 @@ function createHonoApp(_ctx) {
   const app = new Hono2();
   let skillCount = 0;
   try {
-    skillCount = readdirSync(skillsRoot, { withFileTypes: true }).filter((e) => e.isDirectory()).length;
+    skillCount = readdirSync2(skillsRoot, { withFileTypes: true }).filter((e) => e.isDirectory()).length;
   } catch {
   }
   app.get("/api/skill-pack/health", (c) => c.json({ ok: true, plugin: "dsh-skill-pack", ts: true, hono: true, skills: skillCount }));

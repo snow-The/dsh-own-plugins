@@ -1,3 +1,5 @@
+> **DEPRECATED (2026-09-11): retired, not mounted by any profile.** See [DEPRECATED.md](./DEPRECATED.md) for why, what was checked, and how to revive it.
+
 # dsh-llm-copilot
 
 DSH LLM provider adapter for **GitHub Copilot** — registers the `copilot` provider route in the host `ctx.llm` runtime so the Models page and any agent loop can use your Copilot subscription as an LLM channel.

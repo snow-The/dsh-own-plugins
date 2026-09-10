@@ -550,17 +550,33 @@ function hybridSearch(project, query, k = 10) {
 }
 function addDoc(project, title, body, source) {
   const db = openDb(project);
-  const r = db.prepare("INSERT INTO docs(title, body, source) VALUES (?,?,?)").run(title, ftsText(title + " " + body), source);
+  const safeTitle = typeof title === "string" && title.trim().length > 0 ? title : "(untitled)";
+  const safeBody = typeof body === "string" ? body : "";
+  const safeSource = typeof source === "string" ? source : "";
+  const r = db.prepare("INSERT INTO docs(title, body, source) VALUES (?,?,?)").run(safeTitle, ftsText(safeTitle + " " + safeBody), safeSource);
   mineKeywords(project, 40);
   return Number(r.lastInsertRowid);
 }
 function ingestDocDir(project, dir, maxFiles = 200) {
   const root = path2.resolve(dir);
   if (!fs2.existsSync(root)) return { added: 0, skipped: 0 };
+  let isDirectory = false;
+  try {
+    isDirectory = fs2.statSync(root).isDirectory();
+  } catch {
+    isDirectory = false;
+  }
+  if (!isDirectory) return { added: 0, skipped: 0 };
   let added = 0, skipped = 0;
   const walk = (d, depth) => {
     if (depth > 4 || added >= maxFiles) return;
-    for (const f of fs2.readdirSync(d, { withFileTypes: true })) {
+    let entries = [];
+    try {
+      entries = fs2.readdirSync(d, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const f of entries) {
       if (f.name.startsWith(".")) continue;
       const full = path2.join(d, f.name);
       if (f.isDirectory()) {
@@ -617,6 +633,10 @@ import { DatabaseSync as DatabaseSync2 } from "node:sqlite";
 import { existsSync as existsSync3 } from "node:fs";
 import { join as join3 } from "node:path";
 import { homedir } from "node:os";
+function ftsPhrase(q) {
+  const toks = String(q ?? "").toLowerCase().replace(/["'^*:()\[\]{}]/g, " ").split(/\s+/).filter((t) => t.length > 1).slice(0, 8);
+  return toks.length ? toks.map((t) => '"' + t + '"').join(" OR ") : '""';
+}
 function acpGraphPath() {
   return join3(process.env.DSH_HOME ?? join3(homedir(), ".dsh"), "graph", "graph.db");
 }
@@ -645,7 +665,7 @@ function acpGraphRecall(query, limit = 4) {
     try {
       const q = String(query ?? "").toLowerCase().trim();
       if (!q) return [];
-      const matchQ = JSON.stringify(q) + "*";
+      const matchQ = ftsPhrase(q);
       const out = [];
       try {
         const rows = db.prepare("SELECT id FROM node_fts WHERE node_fts MATCH ? LIMIT ?").all(matchQ, limit);
