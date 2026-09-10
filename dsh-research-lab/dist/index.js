@@ -612,6 +612,72 @@ function expandSearch(project, seed, rounds = 2, k = 8) {
   return { rounds: report, final, lexicon: topKeywords(project, 30) };
 }
 
+// src/acp.ts
+import { DatabaseSync as DatabaseSync2 } from "node:sqlite";
+import { existsSync as existsSync3 } from "node:fs";
+import { join as join3 } from "node:path";
+import { homedir } from "node:os";
+function acpGraphPath() {
+  return join3(process.env.DSH_HOME ?? join3(homedir(), ".dsh"), "graph", "graph.db");
+}
+function warn(what, err) {
+  console.warn("[dsh-research-lab] " + what + ":", err instanceof Error ? err.message : String(err));
+}
+function acpGraphAvailable() {
+  try {
+    if (!existsSync3(acpGraphPath())) return false;
+    const db = new DatabaseSync2(acpGraphPath(), { readOnly: true });
+    try {
+      const row = db.prepare("SELECT COUNT(*) AS c FROM checkpoints").get();
+      return (row?.c ?? 0) > 0;
+    } finally {
+      db.close();
+    }
+  } catch (err) {
+    warn("ACP graph probe failed", err);
+    return false;
+  }
+}
+function acpGraphRecall(query, limit = 4) {
+  try {
+    if (!acpGraphAvailable()) return [];
+    const db = new DatabaseSync2(acpGraphPath(), { readOnly: true });
+    try {
+      const q = String(query ?? "").toLowerCase().trim();
+      if (!q) return [];
+      const matchQ = JSON.stringify(q) + "*";
+      const out = [];
+      try {
+        const rows = db.prepare("SELECT id FROM node_fts WHERE node_fts MATCH ? LIMIT ?").all(matchQ, limit);
+        for (const r of rows) {
+          const cps = db.prepare("SELECT c.summary FROM checkpoints c JOIN checkpoint_nodes cn ON cn.session_id=c.session_id AND cn.seq_start=c.seq_start WHERE cn.node_id=? ORDER BY c.created_at DESC LIMIT 1").all(r.id);
+          if (cps.length) out.push({ node: r.id, summary: cps[0].summary, score: 1 });
+        }
+      } catch {
+      }
+      try {
+        const cps = db.prepare("SELECT session_id, seq_start, summary FROM cp_fts WHERE cp_fts MATCH ? LIMIT ?").all(matchQ, limit);
+        for (const c of cps) out.push({ node: "cp:" + c.session_id + ":" + c.seq_start, summary: c.summary, score: 0.8 });
+      } catch {
+      }
+      const seen = /* @__PURE__ */ new Set();
+      const dedup = [];
+      for (const o of out) {
+        if (!seen.has(o.node)) {
+          seen.add(o.node);
+          dedup.push(o);
+        }
+      }
+      return dedup.slice(0, limit);
+    } finally {
+      db.close();
+    }
+  } catch (err) {
+    warn("ACP recall failed", err);
+    return [];
+  }
+}
+
 // src/rewrite.ts
 var RULES = [
   {
@@ -1686,8 +1752,13 @@ async function apply(ctx) {
           const q = String(args?.query ?? "").trim();
           if (!q) throw new Error("query required for search");
           const hits = search(project, q, k);
-          if (!hits.length) return "No hits for: " + q + "\nTry expand (iterative keyword mining) or add more docs.";
-          return "FTS5 hits (" + hits.length + ") for: " + q + "\n\n" + fmt(hits);
+          let acpBlock = "";
+          if (acpGraphAvailable()) {
+            const acp = acpGraphRecall(q, 3);
+            if (acp.length) acpBlock = "\n\n## ACP \u8DE8\u4F1A\u8BDD\u8BB0\u5FC6 (acp_graph)\n" + acp.map((h) => "\u2022 [" + h.node + "] " + h.summary.slice(0, 180)).join("\n");
+          }
+          if (!hits.length) return "No hits for: " + q + "\nTry expand (iterative keyword mining) or add more docs." + acpBlock;
+          return "FTS5 hits (" + hits.length + ") for: " + q + "\n\n" + fmt(hits) + acpBlock;
         }
         case "expand": {
           const q = String(args?.query ?? "").trim();
