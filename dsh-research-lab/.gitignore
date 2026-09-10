@@ -1,3 +1,4 @@
 .rlab/related.db
 .rlab/digests/
 *.bak
+test-all.mjs

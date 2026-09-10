@@ -16,7 +16,11 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json --emitDeclarationOnly && esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js --external:@deepseek-ai/* --log-level=warning",
-    "test": "node test-suite.mjs"
+    "build:tests": "esbuild src/test-entry.ts --bundle --platform=node --format=esm --outfile=test-all.mjs --external:@deepseek-ai/* --log-level=warning",
+    "pretest": "npm run build:tests",
+    "test": "node test-suite.mjs",
+    "prefuzz": "npm run build:tests",
+    "fuzz": "node test-fuzz-ingest.mjs"
   },
   "files": [
     "dist",
