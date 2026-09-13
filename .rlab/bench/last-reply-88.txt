@@ -1,0 +1,6 @@
+```python
+from collections import Counter
+
+def frequency(lst):
+    return dict(Counter(lst))
+```

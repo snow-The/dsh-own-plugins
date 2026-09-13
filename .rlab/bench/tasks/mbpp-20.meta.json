@@ -1,0 +1,30 @@
+{
+  "source": "https://raw.githubusercontent.com/google-research/google-research/master/mbpp/sanitized-mbpp.json",
+  "sourceSha256": "ca95deaa9a01ef0a6f439f88bcf0dd3db3563d22f22aad6cae04ebb9a8d8c8e9",
+  "sourceCount": 427,
+  "sampling": "sorted by task_id, every 21th, first 20",
+  "frozenAt": "2026-09-13T06:43:15.583Z",
+  "taskIds": [
+    2,
+    63,
+    88,
+    111,
+    138,
+    224,
+    250,
+    274,
+    299,
+    397,
+    421,
+    443,
+    465,
+    564,
+    588,
+    611,
+    635,
+    735,
+    756,
+    780
+  ],
+  "note": "External, published, deterministic, unit tests included. Frozen before any plugin change."
+}

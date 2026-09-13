@@ -1,0 +1,5 @@
+- 2026-09-13T05:53:14.038Z  literature:arxiv-2502.02533  MASS: Multi-Agent Design — Optimizing Prompts and Topologies (arXiv 2502.02533)
+- 2026-09-13T05:53:14.488Z  literature:arxiv-2608.26263  SKILL.state: explicit execution state instead of append-only history (arXiv 2608.26263)
+- 2026-09-13T06:04:10.539Z  decision:graph-plan-after-two-papers  决策：先建评估器，再做小旋钮拓扑，最后做可回溯的 state-first
+- 2026-09-13T06:34:25.803Z  todo:pending-activation-and-decisions  待激活（需重启）与待拍板（阻塞 graph 线）
+- 2026-09-13T08:27:22.150Z  experiment:mbpp20-baseline  mbpp20-baseline — confirmed

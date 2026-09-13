@@ -1,0 +1,7 @@
+```python
+def max_pair_difference(tuples):
+    if not tuples:
+        return None
+    values = [x for pair in tuples for x in pair]
+    return max(values) - min(values)
+```
