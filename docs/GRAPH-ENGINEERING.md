@@ -97,3 +97,27 @@
 - **"graph 工程"、"predictable work to functions, reasoning to models"** 这两句话在 adk-docs 全仓 grep **0 命中** ✗ —— 它们来自**课程/演讲** ✓，不是官方文档用词 ✓。文档里最接近的是："Weave deterministic code with adaptive AI reasoning. Orchestrate complex tasks through structured, graph-based architectures, with explicit execution paths and predictable outcomes."（`docs/_includes/homepage/_graphs.md`）
 - **"LLM 路由 vs 确定性路由"的正式权衡**在能拿到的资料里**没有明文** ✗（只找到上面那句可预测性理由 ✓）
 - `https://google.github.io/adk-docs/` **已 308 跳转**到 `adk.dev` ✗（仓库内 `llms.txt` 现在只是指路 ✓）
+
+
+---
+
+## 10. 出处等级（子代理的最后两条补充，直接影响可信度）
+
+**① "graph 工程"不是 Google 的术语** ✗ —— `graph engineering` 与 `predictable work to functions,
+reasoning to models` 在整个 adk-docs 语料里 **0 命中** ✓。官方术语是 **graph-based workflows /
+Workflow Runtime（ADK 2.0）** ✓。把它们说成"Google 的说法"属于**归属错误** ✗。
+
+**② 三类示例的出处等级不同** ✗：
+
+| 语言 | 出处等级 |
+|---|---|
+| Python | 文档正文示例 ✓（可靠 ✓） |
+| **Go** | 文档正文 ✓ ＋ **`google/adk-go` tag `v2` 里可运行的真实源码** ✓（`examples/workflow/routing/string/main.go` ✓）——**最高** ✓ |
+| **TypeScript** | ⚠️ **只来自散文描述** ✗ —— 文档里的 `--8<--` 代码包含**无法从 docs 仓库解析** ✗，`adk-js` 的片段路径**返回 404** ✗ |
+
+⇒ 所以我们**不能**声称"看过 TS 的图 API 源码" ✓；TS 那两条（`new Workflow({edges:[['START', …]]})` ✓、
+`DEFAULT_ROUTE` ✓）是**文档正文的转述** ✓，等级低于 Go ✓。
+
+**③ `google.github.io/adk-docs/` 已不再提供文档** ✗ —— HTTP 308 跳转到 `adk.dev` ✓；任务里点名的五个页面
+（Workflows / Agents / Sequential / Parallel / Loop）**都还在** ✓，只是路径变为 `adk.dev` 下与
+`docs/agents/workflow-agents/` 对应的镜像 ✓。
