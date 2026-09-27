@@ -1,12 +1,50 @@
 // Smoke test for @snow-the/dsh-llm-copilot: module shape + adapter stream translation logic.
-// Run: node tests/smoke.mjs  (from plugin root; needs node_modules present)
+//
+// TWO ENTRIES, one file (node:test interop):
+//   node tests/smoke.mjs     — the historic standalone run; prints its own summary and exits
+//   node --test              — the package's test script; this file is picked up via test/, which
+//                              re-exports it, so the assertions run as real tests
+//
+// WHY THE INTEROP EXISTS: as a bare script in `tests/` (plural, `.mjs`) this file was invisible to
+// `node --test`, so the package's test script discovered ZERO tests and exited 0 — a green run that
+// ran nothing.
 import { CopilotAdapter, PROVIDER, NS, name, inject, apply } from '../dist/index.js'
 
 let pass = 0
 let fail = 0
+/** Pending async assertions: an IIFE's Promise must be awaited, or it is a guaranteed pass. */
+const pending = []
+
+/**
+ * Record one assertion.
+ *
+ * `cond` may be a boolean OR a Promise. Promises are awaited at the end — passing one without
+ * awaiting it is exactly the bug this runner used to have: a Promise is always truthy, so
+ * `check('...', (async () => ...)())` could never fail.
+ */
 function check(label, cond, extra = '') {
+  if (cond && typeof cond.then === 'function') {
+    pending.push(
+      Promise.resolve(cond).then(
+        (ok) => check(label, ok === true, extra),
+        (err) => check(label, false, err?.message ?? String(err)),
+      ),
+    )
+    return
+  }
   if (cond) { pass++; console.log(`  ok  ${label}`) }
   else { fail++; console.log(`FAIL  ${label} ${extra}`) }
+}
+
+/** Settle every async assertion, then report. Used by both entries. */
+async function finish() {
+  let guard = 0
+  while (pending.length && guard++ < 1000) {
+    const batch = pending.splice(0, pending.length)
+    await Promise.all(batch)
+  }
+  console.log(`\n${pass} passed, ${fail} failed`)
+  return fail === 0
 }
 
 // ---- module shape ----
@@ -113,8 +151,11 @@ mockFetch(() => okResponse('[DONE]'))
 const adapter4 = new CopilotAdapter({}, async () => 'tok-4')
 let err4 = null
 try { for await (const _ of adapter4.stream({ model: 'gpt-4o', messages: [] })) { /* drain */ } } catch (e) { err4 = e }
-check('empty -> EMPTY_RESPONSE finish error', err4 === null && false, 'expects finish-error chunk not throw')
-// Actually the design yields finish with error reason; collect chunks instead:
+// An empty completion is reported as a finish-error CHUNK, so draining must NOT throw. (The old
+// line here was `err4 === null && false` with a comment saying the real assertion was "collect
+// chunks instead" — a placeholder that could never pass and never tested anything.)
+check('empty -> drain does not throw', err4 === null, String(err4?.message ?? err4))
+// The real assertion: collect the chunks and inspect the finish reason.
 const adapter4b = new CopilotAdapter({}, async () => 'tok-4')
 const chunks4 = []
 for await (const c of adapter4b.stream({ model: 'gpt-4o', messages: [] })) chunks4.push(c)
@@ -164,5 +205,15 @@ apply({ logger: { warn(m) { warned = m } } }, {})
 check('warns when no registerAdapter', warned.includes('registerAdapter'), warned)
 
 globalThis.fetch = origFetch
-console.log(`\n${pass} passed, ${fail} failed`)
-process.exit(fail ? 1 : 0)
+
+// Settle the async assertions before judging the run.
+const ok = await finish()
+
+// Report the outcome the way the ACTIVE entry needs it. They are mutually exclusive: process.exit()
+// in the test-runner path would kill the runner process, and a bare throw in the standalone path
+// would print a stack trace where a summary belongs.
+if (process.env.DSH_SMOKE_AS_TEST === '1') {
+  if (!ok) throw new Error(`copilot smoke: ${fail} assertion(s) failed — see the FAIL lines above`)
+} else {
+  process.exit(ok ? 0 : 1)
+}

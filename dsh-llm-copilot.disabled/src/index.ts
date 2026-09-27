@@ -166,7 +166,22 @@ function mapUsage(u: Record<string, unknown> | undefined): TokenUsage | undefine
 
 type PendingBlock =
   | { kind: 'text'; index: number; text: string }
-  | { kind: 'tool'; index: number; id?: string; name?: string; args: string }
+  /**
+   * `key` is OpenAI's `tool_calls[].index` — the STABLE handle a stream uses to attach later
+   * fragments to the same call. `index` is this block's position in the assembled output.
+   *
+   * These were the same field, and that was a real defect (measured, not inferred): the block was
+   * stored under `order.length` (1, because a text block came first) while later fragments were
+   * looked up by the stream index (0). Every fragment therefore failed the lookup, opened ANOTHER
+   * block, and one tool call was emitted as three blocks —
+   *     index 1: arguments ""            (the announce chunk's empty string, never appended to)
+   *     index 2: arguments '{"city":'    (id "", name "" — the fragment's own block)
+   *     index 3: arguments '"Beijing"}'  (id "", name "")
+   * — so `arguments` could NEVER be complete, and the host saw three unnamed tool calls. The test
+   * that caught it asserted the block-end's arguments; the two-blocks shape is what made the reason
+   * invisible.
+   */
+  | { kind: 'tool'; index: number; key: number; id?: string; name?: string; args: string }
 
 async function* translateCopilot(payloads: AsyncIterable<string>): AsyncIterable<StreamChunk> {
   const order: PendingBlock[] = []
@@ -214,9 +229,11 @@ async function* translateCopilot(payloads: AsyncIterable<string>): AsyncIterable
     for (const choice of (chunk.choices ?? []) as Record<string, unknown>[]) {
       const delta = (choice.delta ?? {}) as Record<string, unknown>
       if (typeof delta.content === 'string' && delta.content.length > 0) {
-        let textBlock = order.find((b): b is Extract<PendingBlock, { kind: 'text' }> => b.kind === 'text' && b.index === order.length - 1 && b.kind === 'text')
-        // ^ find the last text block if it is the most recent one; otherwise open a new one
+        // Continue the most recent block when it is text; otherwise open a new one. (A `find` over
+        // the whole order used to sit here and was immediately overwritten by the two branches below
+        // — dead code whose condition also contradicted itself; removed rather than left to mislead.)
         const last = order[order.length - 1]
+        let textBlock: Extract<PendingBlock, { kind: 'text' }>
         if (!last || last.kind !== 'text') {
           textBlock = { kind: 'text', index: order.length, text: '' }
           order.push(textBlock)
@@ -229,12 +246,14 @@ async function* translateCopilot(payloads: AsyncIterable<string>): AsyncIterable
       }
       for (const call of (delta.tool_calls ?? []) as Record<string, unknown>[]) {
         const ci = typeof call.index === 'number' ? call.index : 0
-        let tb = order.find((b): b is Extract<PendingBlock, { kind: 'tool' }> => b.kind === 'tool' && b.index === ci)
+        // Look up by the STREAM key, not by the emission index — see the note on PendingBlock.
+        let tb = order.find((b): b is Extract<PendingBlock, { kind: 'tool' }> => b.kind === 'tool' && b.key === ci)
         const fn = (call.function ?? {}) as Record<string, unknown>
         if (!tb) {
           tb = {
             kind: 'tool',
             index: order.length,
+            key: ci,
             id: typeof call.id === 'string' ? call.id : undefined,
             name: typeof fn.name === 'string' ? fn.name : undefined,
             args: '',

@@ -349,8 +349,8 @@ async function* translateCopilot(payloads) {
     for (const choice of chunk.choices ?? []) {
       const delta = choice.delta ?? {};
       if (typeof delta.content === "string" && delta.content.length > 0) {
-        let textBlock = order.find((b) => b.kind === "text" && b.index === order.length - 1 && b.kind === "text");
         const last = order[order.length - 1];
+        let textBlock;
         if (!last || last.kind !== "text") {
           textBlock = { kind: "text", index: order.length, text: "" };
           order.push(textBlock);
@@ -363,12 +363,13 @@ async function* translateCopilot(payloads) {
       }
       for (const call of delta.tool_calls ?? []) {
         const ci = typeof call.index === "number" ? call.index : 0;
-        let tb = order.find((b) => b.kind === "tool" && b.index === ci);
+        let tb = order.find((b) => b.kind === "tool" && b.key === ci);
         const fn = call.function ?? {};
         if (!tb) {
           tb = {
             kind: "tool",
             index: order.length,
+            key: ci,
             id: typeof call.id === "string" ? call.id : void 0,
             name: typeof fn.name === "string" ? fn.name : void 0,
             args: ""
