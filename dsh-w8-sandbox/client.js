@@ -1,4 +1,23 @@
 // dsh-w8-sandbox client - floating draggable sandbox window (notemap-style).
+//
+// DEPENDENCY NOTE (fixed 2026-09-27). `package.json` used to declare
+//     dsh.client.inject = ['@deepseek-ai/dsh-client-runtime']
+// and that package DOES NOT EXIST in the host, so this client could never load — a second,
+// independent reason the plugin was dead (the first was `inject = ['web-server']` server-side).
+// The list now mirrors the official `@deepseek-ai/dsh-client-ui-jobs`, which registers into the
+// SAME slot (`conversation.session.header.actions`) and therefore proves the required set:
+//   @deepseek-ai/dsh-client-ui-conversation  -- owns the slot and provides the `slots` service
+//   @deepseek-ai/dsh-client-locale           -- locale dictionaries, as that plugin also uses
+//   @deepseek-ai/dsh-client-ui-primitives    -- shared UI primitives
+// Note on the `inject` assignment below: `module.exports.inject = ['slots']` is CORRECT and was
+// deliberately left alone. It is easy to misread as a mistake, so recording the evidence. In a
+// client bundle this field names client SERVICES, not packages:
+//     dsh-client-ui-jobs    : inject = ["jobs", "slots", "locale"]
+//     dsh-client-ui-subagent: inject = ["sessions", "uiWorkspace", "slots", "locale", "sidebarRight"]
+// so `slots` is the client-side slot-registry service. (A search for `provide('slots')` on the HOST
+// side returns nothing, which is what first made this look wrong — but the service is provided by
+// the client runtime rather than registered as a host service. `@deepseek-ai/dsh-client-ui-slots`
+// also exists as a package, which corroborates the name.)
 window.__ModuleLoader__.load({
   id: '@snow-the/dsh-w8-sandbox',
   factory: (require) => {
