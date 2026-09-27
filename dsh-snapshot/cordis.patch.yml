@@ -1,4 +1,0 @@
-# dsh-snapshot bundle layer: ~/.dsh backup / restore / rotate tools.
-- insert:
-    - id: snapshot
-      name: '@snow-the/dsh-snapshot'
