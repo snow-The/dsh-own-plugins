@@ -1,0 +1,3 @@
+- insert:
+    - id: dsh-conn-probe
+      name: '@snow-the/dsh-conn-probe'

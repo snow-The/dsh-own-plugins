@@ -1,9 +1,11 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
+    "target": "ES2024",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "lib": ["ES2022"],
+    // ES2024 for String.prototype.toWellFormed (a byte-count truncation can split a surrogate pair,
+    // and a lone surrogate is not valid JSON text).
+    "lib": ["ES2024"],
     "declaration": true,
     "declarationDir": "dist",
     "outDir": "dist",

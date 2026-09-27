@@ -474,7 +474,7 @@ var CopilotAdapter = class extends LlmAdapter {
       } catch {
       }
       throw new LlmError(
-        `GitHub Copilot request failed (${response.status}): ${detail.slice(0, 300)}`,
+        `GitHub Copilot request failed (${response.status}): ${detail.slice(0, 300).toWellFormed()}`,
         httpErrorCode(response.status)
       );
     }

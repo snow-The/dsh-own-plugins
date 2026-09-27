@@ -357,7 +357,7 @@ export class CopilotAdapter extends LlmAdapter {
         /* ignore body read failure */
       }
       throw new LlmError(
-        `GitHub Copilot request failed (${response.status}): ${detail.slice(0, 300)}`,
+        `GitHub Copilot request failed (${response.status}): ${detail.slice(0, 300).toWellFormed()}`,
         httpErrorCode(response.status),
       )
     }
