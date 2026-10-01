@@ -36,9 +36,19 @@
         "@deepseek-ai/dsh-client-ui-primitives"
       ],
       "immediately": true
+    },
+    "compatibility": {
+      "dshReleases": [
+        "0.2.0-rc.1",
+        "0.2.0-rc.2"
+      ],
+      "verifiedAgainst": "0.2.0-rc.2"
     }
   },
   "scripts": {
     "test": "node --test \"test/*.test.mjs\""
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh": ">=0.2.0-rc.1"
   }
 }
