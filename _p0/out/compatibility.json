@@ -1,0 +1,566 @@
+{
+  "generatedAt": "2026-10-01T17:18:13.500Z",
+  "host": "0.2.0-rc.2",
+  "npmReachable": true,
+  "npmError": null,
+  "npmVersionCount": 29,
+  "newestNpm": "0.2.0-rc.2",
+  "syntheticVersions": [
+    "0.2.0",
+    "0.3.0",
+    "1.0.0"
+  ],
+  "pluginCount": 21,
+  "violations": [],
+  "dueForReverify": [],
+  "plugins": [
+    {
+      "name": "@snow-the/dsh-acp-memory",
+      "version": "0.1.0",
+      "dir": ".dsh-starter\\plugins\\dsh-acp-memory",
+      "declaredPeers": {
+        "@deepseek-ai/dsh": ">=0.2.0-rc.1",
+        "@deepseek-ai/dsh-llm": ">=0.2.0-rc.1",
+        "@deepseek-ai/dsh-tools": ">=0.2.0-rc.1"
+      },
+      "floor": "0.2.0-rc.1",
+      "verifiedAgainst": "0.2.0-rc.2",
+      "verdictOnHost": "PASS",
+      "mustPassVersions": [
+        "0.2.0-rc.2",
+        "0.2.0",
+        "0.3.0",
+        "1.0.0"
+      ],
+      "mustPassFailures": 0,
+      "belowFloorVersionsExpectedFail": 27,
+      "perVersion": {
+        "0.2.0-rc.2": "PASS",
+        "0.2.0": "PASS",
+        "0.3.0": "PASS",
+        "1.0.0": "PASS"
+      }
+    },
+    {
+      "name": "@snow-the/dsh-browser",
+      "version": "0.2.0",
+      "dir": ".dsh-starter\\plugins\\dsh-browser",
+      "declaredPeers": {
+        "@deepseek-ai/dsh": ">=0.2.0-rc.1",
+        "@deepseek-ai/dsh-tools": ">=0.2.0-rc.1"
+      },
+      "floor": "0.2.0-rc.1",
+      "verifiedAgainst": "0.2.0-rc.2",
+      "verdictOnHost": "PASS",
+      "mustPassVersions": [
+        "0.2.0-rc.2",
+        "0.2.0",
+        "0.3.0",
+        "1.0.0"
+      ],
+      "mustPassFailures": 0,
+      "belowFloorVersionsExpectedFail": 27,
+      "perVersion": {
+        "0.2.0-rc.2": "PASS",
+        "0.2.0": "PASS",
+        "0.3.0": "PASS",
+        "1.0.0": "PASS"
+      }
+    },
+    {
+      "name": "@snow-the/dsh-busyloop",
+      "version": "0.1.26",
+      "dir": ".dsh-starter\\plugins\\dsh-busyloop",
+      "declaredPeers": {
+        "@deepseek-ai/dsh": ">=0.2.0-rc.1",
+        "@deepseek-ai/dsh-llm": ">=0.2.0-rc.1",
+        "@deepseek-ai/dsh-llm-deepseek": ">=0.2.0-rc.1",
+        "@deepseek-ai/dsh-tools": ">=0.2.0-rc.1"
+      },
+      "floor": "0.2.0-rc.1",
+      "verifiedAgainst": "0.2.0-rc.2",
+      "verdictOnHost": "PASS",
+      "mustPassVersions": [
+        "0.2.0-rc.2",
+        "0.2.0",
+        "0.3.0",
+        "1.0.0"
+      ],
+      "mustPassFailures": 0,
+      "belowFloorVersionsExpectedFail": 27,
+      "perVersion": {
+        "0.2.0-rc.2": "PASS",
+        "0.2.0": "PASS",
+        "0.3.0": "PASS",
+        "1.0.0": "PASS"
+      }
+    },
+    {
+      "name": "@snow-the/dsh-busyloop-codex",
+      "version": "0.1.5",
+      "dir": ".dsh-starter\\plugins\\dsh-codex.frozen",
+      "declaredPeers": {
+        "@deepseek-ai/dsh": ">=0.2.0-rc.1",
+        "@deepseek-ai/dsh-tools": ">=0.2.0-rc.1"
+      },
+      "floor": "0.2.0-rc.1",
+      "verifiedAgainst": "0.2.0-rc.2",
+      "verdictOnHost": "PASS",
+      "mustPassVersions": [
+        "0.2.0-rc.2",
+        "0.2.0",
+        "0.3.0",
+        "1.0.0"
+      ],
+      "mustPassFailures": 0,
+      "belowFloorVersionsExpectedFail": 27,
+      "perVersion": {
+        "0.2.0-rc.2": "PASS",
+        "0.2.0": "PASS",
+        "0.3.0": "PASS",
+        "1.0.0": "PASS"
+      }
+    },
+    {
+      "name": "@snow-the/dsh-busyloop-tools",
+      "version": "0.1.1",
+      "dir": ".dsh-starter\\plugins\\dsh-busyloop-tools",
+      "declaredPeers": {
+        "@deepseek-ai/dsh": ">=0.2.0-rc.1",
+        "@deepseek-ai/dsh-llm": ">=0.2.0-rc.1",
+        "@deepseek-ai/dsh-llm-deepseek": ">=0.2.0-rc.1",
+        "@deepseek-ai/dsh-tools": ">=0.2.0-rc.1"
+      },
+      "floor": "0.2.0-rc.1",
+      "verifiedAgainst": "0.2.0-rc.2",
+      "verdictOnHost": "PASS",
+      "mustPassVersions": [
+        "0.2.0-rc.2",
+        "0.2.0",
+        "0.3.0",
+        "1.0.0"
+      ],
+      "mustPassFailures": 0,
+      "belowFloorVersionsExpectedFail": 27,
+      "perVersion": {
+        "0.2.0-rc.2": "PASS",
+        "0.2.0": "PASS",
+        "0.3.0": "PASS",
+        "1.0.0": "PASS"
+      }
+    },
+    {
+      "name": "@snow-the/dsh-eigenflux",
+      "version": "0.1.0",
+      "dir": ".dsh-starter\\plugins\\dsh-eigenflux",
+      "declaredPeers": {
+        "@deepseek-ai/dsh": ">=0.2.0-rc.1",
+        "@deepseek-ai/dsh-tools": ">=0.2.0-rc.1"
+      },
+      "floor": "0.2.0-rc.1",
+      "verifiedAgainst": "0.2.0-rc.2",
+      "verdictOnHost": "PASS",
+      "mustPassVersions": [
+        "0.2.0-rc.2",
+        "0.2.0",
+        "0.3.0",
+        "1.0.0"
+      ],
+      "mustPassFailures": 0,
+      "belowFloorVersionsExpectedFail": 27,
+      "perVersion": {
+        "0.2.0-rc.2": "PASS",
+        "0.2.0": "PASS",
+        "0.3.0": "PASS",
+        "1.0.0": "PASS"
+      }
+    },
+    {
+      "name": "@snow-the/dsh-gitkit",
+      "version": "0.1.0",
+      "dir": ".dsh-starter\\plugins\\dsh-gitkit",
+      "declaredPeers": {
+        "@deepseek-ai/dsh": ">=0.2.0-rc.1"
+      },
+      "floor": "0.2.0-rc.1",
+      "verifiedAgainst": "0.2.0-rc.2",
+      "verdictOnHost": "PASS",
+      "mustPassVersions": [
+        "0.2.0-rc.2",
+        "0.2.0",
+        "0.3.0",
+        "1.0.0"
+      ],
+      "mustPassFailures": 0,
+      "belowFloorVersionsExpectedFail": 27,
+      "perVersion": {
+        "0.2.0-rc.2": "PASS",
+        "0.2.0": "PASS",
+        "0.3.0": "PASS",
+        "1.0.0": "PASS"
+      }
+    },
+    {
+      "name": "@snow-the/dsh-lib-analyzer",
+      "version": "0.1.0",
+      "dir": ".dsh-starter\\plugins\\dsh-lib-analyzer",
+      "declaredPeers": {
+        "@deepseek-ai/dsh": ">=0.2.0-rc.1"
+      },
+      "floor": "0.2.0-rc.1",
+      "verifiedAgainst": "0.2.0-rc.2",
+      "verdictOnHost": "PASS",
+      "mustPassVersions": [
+        "0.2.0-rc.2",
+        "0.2.0",
+        "0.3.0",
+        "1.0.0"
+      ],
+      "mustPassFailures": 0,
+      "belowFloorVersionsExpectedFail": 27,
+      "perVersion": {
+        "0.2.0-rc.2": "PASS",
+        "0.2.0": "PASS",
+        "0.3.0": "PASS",
+        "1.0.0": "PASS"
+      }
+    },
+    {
+      "name": "@snow-the/dsh-llm-copilot",
+      "version": "0.1.1",
+      "dir": ".dsh-starter\\plugins\\dsh-llm-copilot.disabled",
+      "declaredPeers": {
+        "@deepseek-ai/dsh": ">=0.2.0-rc.1",
+        "@deepseek-ai/dsh-llm": ">=0.2.0-rc.1"
+      },
+      "floor": "0.2.0-rc.1",
+      "verifiedAgainst": "0.2.0-rc.2",
+      "verdictOnHost": "PASS",
+      "mustPassVersions": [
+        "0.2.0-rc.2",
+        "0.2.0",
+        "0.3.0",
+        "1.0.0"
+      ],
+      "mustPassFailures": 0,
+      "belowFloorVersionsExpectedFail": 27,
+      "perVersion": {
+        "0.2.0-rc.2": "PASS",
+        "0.2.0": "PASS",
+        "0.3.0": "PASS",
+        "1.0.0": "PASS"
+      }
+    },
+    {
+      "name": "@snow-the/dsh-notemap",
+      "version": "0.15.0",
+      "dir": ".dsh-starter\\plugins\\dsh-notemap",
+      "declaredPeers": {
+        "@deepseek-ai/dsh": ">=0.2.0-rc.1",
+        "@deepseek-ai/dsh-tools": ">=0.2.0-rc.1"
+      },
+      "floor": "0.2.0-rc.1",
+      "verifiedAgainst": "0.2.0-rc.2",
+      "verdictOnHost": "PASS",
+      "mustPassVersions": [
+        "0.2.0-rc.2",
+        "0.2.0",
+        "0.3.0",
+        "1.0.0"
+      ],
+      "mustPassFailures": 0,
+      "belowFloorVersionsExpectedFail": 27,
+      "perVersion": {
+        "0.2.0-rc.2": "PASS",
+        "0.2.0": "PASS",
+        "0.3.0": "PASS",
+        "1.0.0": "PASS"
+      }
+    },
+    {
+      "name": "@snow-the/dsh-plugin-doctor",
+      "version": "0.1.0",
+      "dir": ".dsh-starter\\plugins\\dsh-plugin-doctor",
+      "declaredPeers": {
+        "@deepseek-ai/dsh": ">=0.2.0-rc.1"
+      },
+      "floor": "0.2.0-rc.1",
+      "verifiedAgainst": "0.2.0-rc.2",
+      "verdictOnHost": "PASS",
+      "mustPassVersions": [
+        "0.2.0-rc.2",
+        "0.2.0",
+        "0.3.0",
+        "1.0.0"
+      ],
+      "mustPassFailures": 0,
+      "belowFloorVersionsExpectedFail": 27,
+      "perVersion": {
+        "0.2.0-rc.2": "PASS",
+        "0.2.0": "PASS",
+        "0.3.0": "PASS",
+        "1.0.0": "PASS"
+      }
+    },
+    {
+      "name": "@snow-the/dsh-plugin-guide",
+      "version": "0.1.7",
+      "dir": ".dsh-starter\\plugins\\dsh-plugin-guide",
+      "declaredPeers": {
+        "@deepseek-ai/dsh": ">=0.2.0-rc.1",
+        "@deepseek-ai/dsh-tools": ">=0.2.0-rc.1"
+      },
+      "floor": "0.2.0-rc.1",
+      "verifiedAgainst": "0.2.0-rc.2",
+      "verdictOnHost": "PASS",
+      "mustPassVersions": [
+        "0.2.0-rc.2",
+        "0.2.0",
+        "0.3.0",
+        "1.0.0"
+      ],
+      "mustPassFailures": 0,
+      "belowFloorVersionsExpectedFail": 27,
+      "perVersion": {
+        "0.2.0-rc.2": "PASS",
+        "0.2.0": "PASS",
+        "0.3.0": "PASS",
+        "1.0.0": "PASS"
+      }
+    },
+    {
+      "name": "@snow-the/dsh-research-lab",
+      "version": "0.2.3",
+      "dir": ".dsh-starter\\plugins\\dsh-research-lab",
+      "declaredPeers": {
+        "@deepseek-ai/dsh": ">=0.2.0-rc.1",
+        "@deepseek-ai/dsh-tools": ">=0.2.0-rc.1"
+      },
+      "floor": "0.2.0-rc.1",
+      "verifiedAgainst": "0.2.0-rc.2",
+      "verdictOnHost": "PASS",
+      "mustPassVersions": [
+        "0.2.0-rc.2",
+        "0.2.0",
+        "0.3.0",
+        "1.0.0"
+      ],
+      "mustPassFailures": 0,
+      "belowFloorVersionsExpectedFail": 27,
+      "perVersion": {
+        "0.2.0-rc.2": "PASS",
+        "0.2.0": "PASS",
+        "0.3.0": "PASS",
+        "1.0.0": "PASS"
+      }
+    },
+    {
+      "name": "@snow-the/dsh-search",
+      "version": "0.5.1",
+      "dir": ".dsh-starter\\plugins\\dsh-search",
+      "declaredPeers": {
+        "@deepseek-ai/dsh": ">=0.2.0-rc.1",
+        "@deepseek-ai/dsh-tools": ">=0.2.0-rc.1"
+      },
+      "floor": "0.2.0-rc.1",
+      "verifiedAgainst": "0.2.0-rc.2",
+      "verdictOnHost": "PASS",
+      "mustPassVersions": [
+        "0.2.0-rc.2",
+        "0.2.0",
+        "0.3.0",
+        "1.0.0"
+      ],
+      "mustPassFailures": 0,
+      "belowFloorVersionsExpectedFail": 27,
+      "perVersion": {
+        "0.2.0-rc.2": "PASS",
+        "0.2.0": "PASS",
+        "0.3.0": "PASS",
+        "1.0.0": "PASS"
+      }
+    },
+    {
+      "name": "@snow-the/dsh-session-handoff",
+      "version": "0.17.22",
+      "dir": "dsh-session-handoff",
+      "declaredPeers": {
+        "@deepseek-ai/dsh": ">=0.2.0-rc.1",
+        "@deepseek-ai/dsh-home-paths": ">=0.2.0-rc.1",
+        "@deepseek-ai/dsh-tools": ">=0.2.0-rc.1"
+      },
+      "floor": "0.2.0-rc.1",
+      "verifiedAgainst": "0.2.0-rc.2",
+      "verdictOnHost": "PASS",
+      "mustPassVersions": [
+        "0.2.0-rc.2",
+        "0.2.0",
+        "0.3.0",
+        "1.0.0"
+      ],
+      "mustPassFailures": 0,
+      "belowFloorVersionsExpectedFail": 27,
+      "perVersion": {
+        "0.2.0-rc.2": "PASS",
+        "0.2.0": "PASS",
+        "0.3.0": "PASS",
+        "1.0.0": "PASS"
+      }
+    },
+    {
+      "name": "@snow-the/dsh-session-handoff",
+      "version": "0.18.13",
+      "dir": "source\\repos\\dsh-session-handoff",
+      "declaredPeers": {
+        "@deepseek-ai/dsh": ">=0.2.0-rc.1",
+        "@deepseek-ai/dsh-home-paths": ">=0.2.0-rc.1",
+        "@deepseek-ai/dsh-session-persistence-jsonl": ">=0.2.0-rc.1",
+        "@deepseek-ai/dsh-tools": ">=0.2.0-rc.1"
+      },
+      "floor": "0.2.0-rc.1",
+      "verifiedAgainst": "0.2.0-rc.2",
+      "verdictOnHost": "PASS",
+      "mustPassVersions": [
+        "0.2.0-rc.2",
+        "0.2.0",
+        "0.3.0",
+        "1.0.0"
+      ],
+      "mustPassFailures": 0,
+      "belowFloorVersionsExpectedFail": 27,
+      "perVersion": {
+        "0.2.0-rc.2": "PASS",
+        "0.2.0": "PASS",
+        "0.3.0": "PASS",
+        "1.0.0": "PASS"
+      }
+    },
+    {
+      "name": "@snow-the/dsh-session-repair",
+      "version": "0.1.0",
+      "dir": ".dsh-starter\\plugins\\dsh-session-repair",
+      "declaredPeers": {
+        "@deepseek-ai/dsh": ">=0.2.0-rc.1"
+      },
+      "floor": "0.2.0-rc.1",
+      "verifiedAgainst": "0.2.0-rc.2",
+      "verdictOnHost": "PASS",
+      "mustPassVersions": [
+        "0.2.0-rc.2",
+        "0.2.0",
+        "0.3.0",
+        "1.0.0"
+      ],
+      "mustPassFailures": 0,
+      "belowFloorVersionsExpectedFail": 27,
+      "perVersion": {
+        "0.2.0-rc.2": "PASS",
+        "0.2.0": "PASS",
+        "0.3.0": "PASS",
+        "1.0.0": "PASS"
+      }
+    },
+    {
+      "name": "@snow-the/dsh-skill-pack",
+      "version": "0.3.1",
+      "dir": ".dsh-starter\\plugins\\dsh-skill-pack",
+      "declaredPeers": {
+        "@deepseek-ai/dsh": ">=0.2.0-rc.1",
+        "@deepseek-ai/dsh-skill-filesystem": ">=0.2.0-rc.1",
+        "@deepseek-ai/dsh-tools": ">=0.2.0-rc.1"
+      },
+      "floor": "0.2.0-rc.1",
+      "verifiedAgainst": "0.2.0-rc.2",
+      "verdictOnHost": "PASS",
+      "mustPassVersions": [
+        "0.2.0-rc.2",
+        "0.2.0",
+        "0.3.0",
+        "1.0.0"
+      ],
+      "mustPassFailures": 0,
+      "belowFloorVersionsExpectedFail": 27,
+      "perVersion": {
+        "0.2.0-rc.2": "PASS",
+        "0.2.0": "PASS",
+        "0.3.0": "PASS",
+        "1.0.0": "PASS"
+      }
+    },
+    {
+      "name": "@snow-the/dsh-snapshot",
+      "version": "0.1.2",
+      "dir": ".dsh-starter\\plugins\\dsh-snapshot",
+      "declaredPeers": {
+        "@deepseek-ai/dsh": ">=0.2.0-rc.1"
+      },
+      "floor": "0.2.0-rc.1",
+      "verifiedAgainst": "0.2.0-rc.2",
+      "verdictOnHost": "PASS",
+      "mustPassVersions": [
+        "0.2.0-rc.2",
+        "0.2.0",
+        "0.3.0",
+        "1.0.0"
+      ],
+      "mustPassFailures": 0,
+      "belowFloorVersionsExpectedFail": 27,
+      "perVersion": {
+        "0.2.0-rc.2": "PASS",
+        "0.2.0": "PASS",
+        "0.3.0": "PASS",
+        "1.0.0": "PASS"
+      }
+    },
+    {
+      "name": "@snow-the/dsh-ui-shim",
+      "version": "0.1.9",
+      "dir": ".dsh-starter\\plugins\\dsh-ui-shim",
+      "declaredPeers": {
+        "@deepseek-ai/dsh": ">=0.2.0-rc.1"
+      },
+      "floor": "0.2.0-rc.1",
+      "verifiedAgainst": "0.2.0-rc.2",
+      "verdictOnHost": "PASS",
+      "mustPassVersions": [
+        "0.2.0-rc.2",
+        "0.2.0",
+        "0.3.0",
+        "1.0.0"
+      ],
+      "mustPassFailures": 0,
+      "belowFloorVersionsExpectedFail": 27,
+      "perVersion": {
+        "0.2.0-rc.2": "PASS",
+        "0.2.0": "PASS",
+        "0.3.0": "PASS",
+        "1.0.0": "PASS"
+      }
+    },
+    {
+      "name": "@snow-the/dsh-w8-sandbox",
+      "version": "0.1.0",
+      "dir": ".dsh-starter\\plugins\\dsh-w8-sandbox",
+      "declaredPeers": {
+        "@deepseek-ai/dsh": ">=0.2.0-rc.1"
+      },
+      "floor": "0.2.0-rc.1",
+      "verifiedAgainst": "0.2.0-rc.2",
+      "verdictOnHost": "PASS",
+      "mustPassVersions": [
+        "0.2.0-rc.2",
+        "0.2.0",
+        "0.3.0",
+        "1.0.0"
+      ],
+      "mustPassFailures": 0,
+      "belowFloorVersionsExpectedFail": 27,
+      "perVersion": {
+        "0.2.0-rc.2": "PASS",
+        "0.2.0": "PASS",
+        "0.3.0": "PASS",
+        "1.0.0": "PASS"
+      }
+    }
+  ]
+}
