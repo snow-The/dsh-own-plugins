@@ -14,7 +14,7 @@ const P = path.join(HOME, '.dsh-starter', 'plugins');
 const STAMP = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
 const EXEC = process.argv.includes('--exec');
 
-const MSG_FILE = path.join(P, '_p0', 'commit-msg.txt');
+const MSG_FILE = process.env.P0_MSG_FILE ?? path.join(P, '_p0', 'commit-msg.txt');
 const MSG = fs.existsSync(MSG_FILE)
   ? fs.readFileSync(MSG_FILE, 'utf8')
   : `chore(compat): declare dsh peers + dsh.compatibility, drop dead client module

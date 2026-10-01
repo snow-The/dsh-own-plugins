@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-01T17:18:13.500Z",
+  "generatedAt": "2026-10-01T17:24:08.205Z",
   "host": "0.2.0-rc.2",
   "npmReachable": true,
   "npmError": null,
@@ -279,7 +279,7 @@
     },
     {
       "name": "@snow-the/dsh-plugin-doctor",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dir": ".dsh-starter\\plugins\\dsh-plugin-doctor",
       "declaredPeers": {
         "@deepseek-ai/dsh": ">=0.2.0-rc.1"

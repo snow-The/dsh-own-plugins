@@ -1,2 +1,4 @@
 backups/
 commit-msg.txt
+msg-*.txt
+out/
