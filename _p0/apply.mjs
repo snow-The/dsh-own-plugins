@@ -17,8 +17,10 @@ const HOME = os.homedir();
 const WRITE = process.argv.includes('--write');
 const STAMP = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
 
-/** 代际下界。无上界 —— 生态规则：DSH peer 一律浮动，绝不钉精确/带上界。 */
-const FLOOR = '>=0.2.0-rc.1';
+/** 代际下界与兼容性声明。单一事实源：_p0/floor.json —— 切换世代只改那一个文件。 */
+const DECL = JSON.parse(fs.readFileSync(new URL('./floor.json', import.meta.url), 'utf8'));
+const FLOOR = DECL.floor;
+const COMPAT = { dshReleases: DECL.dshReleases, verifiedAgainst: DECL.verifiedAgainst };
 const DSH = '@deepseek-ai/dsh';
 const fn = (n) => `@deepseek-ai/${n}`;
 
@@ -93,10 +95,7 @@ for (const [dirName, plan] of Object.entries(PLAN)) {
   // ---- (b) dsh.compatibility（我们的记录；宿主不读）----
   pkg.dsh = pkg.dsh || {};
   if (!pkg.dsh.compatibility) {
-    pkg.dsh.compatibility = {
-      dshReleases: ['0.2.0-rc.1', '0.2.0-rc.2'],
-      verifiedAgainst: '0.2.0-rc.2',
-    };
+    pkg.dsh.compatibility = { ...COMPAT };
     stats.compatAdded++;
   }
 

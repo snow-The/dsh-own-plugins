@@ -1,0 +1,25 @@
+{
+  "_comment": "所有 @snow-the 插件声明 dsh 兼容性时的【单一事实源】。apply.mjs / compat-ci.mjs / gen-compat-docs.mjs 都读这里。切换世代只改这三个字段。",
+  "floor": ">=0.2.0-rc.1",
+  "dshReleases": ["0.2.0-rc.1", "0.2.0-rc.2"],
+  "verifiedAgainst": "0.2.0-rc.2",
+  "_why_this_value": [
+    "语义：这条线把 0.1.x 全部划出去 —— 在 0.1.7-rc.2 上插件会被宿主禁用，0.2.0 全系通过。",
+    "为什么不是字面的 >=0.2.0：本机（也是 npm 最新）运行的是 0.2.0-rc.2，而 0.2.0-rc.2 不满足 >=0.2.0。",
+    "  实测（宿主自己的 evaluatePluginCompatibility）：在 0.2.0-rc.2 上写 >=0.2.0 会让【每一个】插件被禁用，",
+    "  宿主逐个打印 'Plugin <name> is incompatible with dsh 0.2.0-rc.2'。",
+    "为什么不用 allow-version 豁免绕过：豁免是按 (插件@精确版本, 宿主精确版本) 逐条授予的，",
+    "  21 个插件 × 2 个 profile = 42 条，且每换一个宿主版本就要重授一次 —— 不是可维护的做法。"
+  ],
+  "_switch_procedure": [
+    "当 @deepseek-ai/dsh 的 0.2.0 正式版发布、且本机已升级到它之后：",
+    "  1) 把上面的 floor 改成 \">=0.2.0\"",
+    "  2) node ~/.dsh-starter/plugins/_p0/apply.mjs --write     # 重写 21 个清单（归一既有 peer）",
+    "  3) node ~/.dsh-starter/plugins/_p0/gen-compat-docs.mjs --write",
+    "  4) node ~/.dsh-starter/plugins/_p0/compat-ci.mjs         # 护栏必须仍为 exit 0",
+    "  5) node ~/.dsh-starter/plugins/_p0/commit-all.mjs --exec",
+    "compat-ci.mjs 的「待复验」一节会在 npm 出现高于 verifiedAgainst 的版本时主动提醒，",
+    "所以不需要人去记这件事 —— 它会在 0.2.0 正式版落地时告诉你。"
+  ],
+  "_no_upper_bound": "一律纯下界，绝不加上界。宿主比较时带 includePrerelease，所以 <0.2.0 这类上界今天能过、到正式版就落闸（dsh-busyloop 原先就踩了这个）。"
+}

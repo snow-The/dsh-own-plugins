@@ -60,6 +60,8 @@ for (const dir of dirs) {
   L.push('> **请勿手改** —— 手改的内容会被下一次生成覆盖。要改，改生成器或改 `package.json`。');
   L.push('>');
   L.push(`> 生成器版本 \`${GEN_VERSION}\` · 宿主 \`${HOST_VERSION}\` · 插件 \`${pkg.name}@${pkg.version}\``);
+  L.push('>');
+  L.push('> 代际下界与 `dshReleases` 的**单一事实源**是 `_p0/floor.json`。切换世代改那一个文件，然后重跑本生成器。');
   L.push('');
   L.push('## 支持的 dsh 版本');
   L.push('');
