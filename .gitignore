@@ -3,18 +3,11 @@ dist/*.map
 *.tsbuildinfo
 
 # --- .rlab/ （研究实验室的数据目录）---
-# 它落在本仓库里是历史的偶然（见 commit 3af06ca：MBPP-20 基准那次里程碑）。
-# 仓库内没有任何代码读它，它也不是插件的一部分 —— 但其中 bench/ 和 wiki/
-# 的那 17 个文件是一份连贯的研究存档，所以【不 untrack】，只挡掉纯粹的噪声。
+# 它曾经落在这里（commit 3af06ca 那次 MBPP-20 基准），已于 2026-10-02 搬走：
+#   ~/01/r32/research/plugin-iter/.rlab/
+# 那个落点是 ~/plugin-iter-research/00-INDEX.md 早就指定的 ——
+# 计划写在那边、实验跑在这边，互相不知道对方存在，现在合流了。
 #
-# 注意：.gitignore 不支持行尾注释，规则必须独占一行，否则整行会被当成 pattern。
-# 验证方式：git check-ignore -v <路径>
-
-# 工具把 project root 认成了 .rlab 自己，于是在里面又建了一个 .rlab/
-.rlab/.rlab/
-
-# 工具的临时工作区
-.rlab/.tmp-rl/
-
-# 基准结果的一次性备份（** 才能跨目录，单个 * 不跨 /）
-.rlab/**/*.bak-*
+# 这条规则留着是【防复发】：以后若有人在本目录跑 research-lab 工具，
+# 数据不会又混进插件源码仓库。
+.rlab/

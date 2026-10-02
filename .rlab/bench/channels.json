@@ -1,8 +1,0 @@
-{
-  "deepseek-official": {
-    "baseURL": "https://api.deepseek.com",
-    "model": "deepseek-chat",
-    "keyEnv": "DEEPSEEK_API_KEY",
-    "maxTokens": 1024
-  }
-}
