@@ -1,0 +1,8 @@
+{
+  "_comment": "除 @snow-the/* 之外，还有哪些插件是【我们自己的】。",
+  "_why": "P0 那一批的扫描按 @snow-the/* 过滤，于是无 scope 的 dsh-ark-plan 整个漏掉了 —— 它装在两个 profile 里，却既没有 peerDependencies 也没有 dsh.compatibility，正是那一批要消灭的静默状态。命名约定不是判据，显式清单才是。",
+  "extraOwnPlugins": [
+    "dsh-ark-plan"
+  ],
+  "_howToAdd": "新建一个无 scope 的自研插件时，把它的 package.json name 加进上面的数组，然后重跑 compat-ci.mjs / gen-compat-docs.mjs / apply.mjs。"
+}
